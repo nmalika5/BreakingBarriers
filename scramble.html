@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Word Scramble</title>
+</head>
+<body>
+    <h1>A Javascript Word Scramble Game</h1>
+
+    <script>
+        "use strict";
+
+        var WORDS     = ["booger", "apple", "hackbright", "mango"];
+        var SCRAMBLED = ["oogreb", "papel", "backrhight", "goman"];
+
+        var playing = true;
+
+        while (playing) {
+
+            // Grab a random word from the WORDS array
+            var arrayLength = WORDS.length;
+
+            var randIndex =  Math.floor(Math.random() * arrayLength);
+            var randWord = WORDS[randIndex];
+
+            // Grab the corresponding scrambled word from the SCRAMBLED array
+            // var randScramble = SCRAMBLED[randIndex];
+            // 
+            var origToShuffle = randWord;
+            // initialize empty shuffled string
+            var shuffledWord = "";
+
+            // while the origional string still has length
+            while (origToShuffle.length > 0) {
+                // get random index in length of original string
+                var randCharInd = Math.floor(Math.random() * origToShuffle.length);
+                // concatenate original[index] to shuffled string
+                shuffledWord = shuffledWord + origToShuffle[randCharInd];
+                console.log(shuffledWord);
+                // slice orginial string ommting original[:index-1]+original[index:]
+                origToShuffle = origToShuffle.slice(0, randCharInd) + origToShuffle.slice(randCharInd+1);
+                console.log(origToShuffle);
+            }
+            var randScramble = shuffledWord;
+
+            // prompt the user to guess the original word when given the scrambled word
+            var guess = prompt("Please guess the original word for: " + randScramble);
+            if (guess !== null ){ 
+                guess = guess.toLowerCase();
+                while (guess[0] === " ") {
+                    guess = guess.slice(1);
+                    // console.log(guess);
+                }
+                while (guess[guess.length-1] === " ") {
+                    guess = guess.slice(0,guess.length-1);
+                    // console.log(guess);
+                }
+            
+                // If the user guesses wrong, tell them they were wrong and the right word.
+                if (guess !== randWord) {
+                    alert("Nope, the original word was: " + randWord);
+                } else {
+                    alert("Yes! That is the orgininal word!");
+                }
+                
+                // If the user guesses the correct word, congratulate them.
+
+                playing = confirm("Press OK To keep playing or Cancel to quit");
+
+                // What does confirm() return?
+                // What does setting the playing variable do?
+            } else {
+                playing = false;
+            }
+
+        }
+
+        alert("goodbye!");
+    </script>
+    
+</body>
+</html>
