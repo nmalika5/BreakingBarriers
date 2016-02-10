@@ -7,6 +7,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 
 from model import connect_to_db, db, User, Language, Contact, Message, MessageLang, MessageContact
 
+import yandex
 
 app = Flask(__name__)
 
@@ -29,7 +30,14 @@ def index():
 def register_form():
     """Show form for user signup."""
 
-    return render_template("register_form.html")
+    language_list = Language.query.all()
+
+    languages = []
+
+    for lang in language_list:
+        languages.append((lang.lang_id, lang.lang_name))
+    
+    return render_template("register_form.html", languages=languages)
 
 
 @app.route('/register', methods=['POST'])
@@ -41,7 +49,7 @@ def register_process():
     password = request.form.get("password")
     first_name = request.form.get("first_name")
     last_name = request.form.get("last_name")
-    lang_id = request.form.get("lang")
+    lang_id = request.form.get("lang_id")
     phone_number = request.form.get("phone")
 
     new_user = User(email=email, password=password, first_name=first_name,
@@ -81,7 +89,7 @@ def login_process():
     session["user_id"] = user.user_id
 
     flash("Logged in")
-    return redirect("/users/%s" % user.user_id) #TODO send message redirect, link to profile there
+    return redirect("/users/%s/send_text" % user.user_id)
 #if there're no contacts, redirect to profile to add contacts
 
 @app.route('/logout')
@@ -110,22 +118,59 @@ def user_detail(user_id):
 
     contacts = []
 
+    if len(user_contact_list) == 0:
+        flash("The user has no contacts")
+        return redirect("/users/%s/add_contact" % user_id)
+
     for contact in user_contact_list:
         contacts.append((contact.contact_phone, contact.language.lang_name))
-    return render_template("user_profile.html", user=user, contacts=contacts)
-    # contact = Contacts.query.filter_by(user_id=user_id, contact_id=contact_id).first()
 
-    # if not user_contact_list:
-    #     flash("The user has no contacts")
-    #     return redirect("/users/<int:user_id>/")
+    return render_template("user_profile.html", user=user, contacts=contacts, 
+                            user_id=user_id)
+
+
+
     #vars = usercontroller.sstuff(hjhjgjl)
+
+@app.route("/users/<int:user_id>/edit_user", methods=["GET"])
+def show_user_edit(user_id):
+    """Edit user's info."""
+
+    return render_template("user_edit.html", user_id=user_id, first_name=first_name,
+                            last_name=last_name, email= email, password=password)
+
+
+@app.route("/users/<int:user_id>/edit_user", methods=["POST"])
+def user_edit(user_id):
+    """Edit user's info."""
+
+    user = User.query.get(user_id)
+
+    if user:
+            user[0].first_name = first_name
+            user[1].last_name = last_name
+            user[2].email = email
+            user[3].password = password
+            user[4].lang_id = lang_id
+            user[5].phone_number= phone_number
+
+    db.session.commit()
+
+    return redirect("/users/%s" % user_id)
+
 
 @app.route("/users/<int:user_id>/add_contact", methods=['GET'])
 def show_contact_form(user_id):
     """Show form for contact signup."""
 
     user = User.query.get(user_id)
-    return render_template("contact_add.html")
+    language_list = Language.query.all()
+
+    languages = []
+
+    for lang in language_list:
+        languages.append((lang.lang_id, lang.lang_name))
+    return render_template("contact_add.html", user_id=user_id, languages=languages)
 
 
 @app.route("/users/<int:user_id>/add_contact", methods=["POST"])
@@ -134,11 +179,11 @@ def add_contact(user_id):
 
     first_name = request.form["first_name"]
     last_name = request.form["last_name"]
-    language = request.form["lang"]
+    language = request.form["lang_id"]
     phone = request.form["phone"]
 
-    contact = Contact(contact_first_name=contact_first_name, contact_last_name=contact_last_name,
-                    contact_phone=contact_phone, user_id=user_id, lang_id=lang_id)
+    contact = Contact(contact_first_name=first_name, contact_last_name=last_name,
+                    contact_phone=phone, user_id=user_id, lang_id=language)
     
     flash("Contact added.")
     db.session.add(contact)
@@ -146,9 +191,6 @@ def add_contact(user_id):
     db.session.commit()
 
     return redirect("/users/%s" % user_id)
-
-#     return redirect("/movies/%s" % movie_id)
-#     return render_template("user_profile.html", user=user, contacts=contacts)
 
 # @app.route("/users/<int:user_id>/messages", methods=["GET"])
 # def message_list(user_id):
@@ -165,18 +207,16 @@ def show_text_form(user_id):
 
     existing_message = ""
 
+    return render_template("message_form.html", existing_message=existing_message, 
+                            user_id=user_id)
+
+@app.route("/users/<int:user_id>/send_text", methods=["POST"])
+def submit_text_form(user_id):
+    """Show send message form"""
+
+    existing_message = ""
+
     return render_template("message_form.html", existing_message=existing_message)
-
-@app.route("/users/<int:user_id>/send_text/preview", methods=["GET"])
-def show_preview(user_id):
-    """Preview message"""
-
-    # trans_msg = MesgController.translate(Variables)
-
-    trans_msg=""
-
-    #show response from yandex
-    return render_template("translated_text.html", trans_msg=trans_msg)
 
     
 '''
@@ -201,27 +241,26 @@ def edit_message(user_id):
 
     if user_message:
         user_id = session['user_id']
-        user = User.query.filter_by(email=email, password=password).all()
+        user = User.query.filter_by(user_id=user_id).all()[0]
 
-        existing_message = Message.query.filter_by(message_id = message_id, user_id=user[0].user_id).all()
+        contacts = user.contacts
 
-        #if user has message, then edit a message; otherwise, add a new message into Message table
+        lang_code = user.language.yandex_lang_code
+        trans_msgs = []
 
-        if existing_message:
-            existing_message[0].message_text = user_message
+        for contact in contacts:
+            contact_lang = contact.language.yandex_lang_code
+            if lang_code == contact_lang:
+                trans_msgs.append([user_message])
+            # TODO """if contacts have the same lang, send request to translate
+            #            only a unique lang, not based on the contact"""
+            else:
+                trans_msgs.append(yandex.translate_message(user_message, lang_code, contact_lang)['text'])
 
-        else:
-            new_message = Message(message=user_message,
-                                  user_id=user[0].user_id,
-                                  )
-            db.session.add(new_rating)
+    return render_template("translated_text.html", trans_msgs=trans_msgs)
 
-        db.session.commit()
-
-        message = Message.query.get(message_id)
-
-        return render_template("message_form.html", message=message, 
-                                existing_message=existing_message[0].message_text)
+    # create Language controller that will have all above stuff, 
+    # calling translate_message() function from that controller in this route 
 
 
 @app.route("/users/<int:user_id>/send_text/send", methods=["POST"])
@@ -235,8 +274,18 @@ def send_text():
     #yandex to translate
     #twilio to send
 
-    db.session.add(new_message)
-    db.session.commit()
+
+# else:
+#             new_message = Message(message=user_message,
+#                                   user_id=user[0].user_id,
+#                                   )
+#             db.session.add(new_rating)
+
+#         db.session.commit()
+
+#         message = Message.query.get(message_id)
+#     db.session.add(new_message)
+#     db.session.commit()
 
     flash("Message was sent.")
 
@@ -270,31 +319,6 @@ def send_text():
 
 # #TODO pre-view -> same as 111, preview and send buttons, still AJAX, but diff route
 
-# @app.route("/movies/<int:movie_id>", methods=['POST'])
-# def movie_detail_process(movie_id):
-#     """Add/edit a rating."""
-
-#     # Get form variables
-#     score = int(request.form["score"])
-
-#     user_id = session.get("user_id")
-#     if not user_id:
-#         raise Exception("No user logged in.")
-
-#     rating = Rating.query.filter_by(user_id=user_id, movie_id=movie_id).first()
-
-#     if rating:
-#         rating.score = score
-#         flash("Rating updated.")
-
-#     else:
-#         rating = Rating(user_id=user_id, movie_id=movie_id, score=score)
-#         flash("Rating added.")
-#         db.session.add(rating)
-
-#     db.session.commit()
-
-#     return redirect("/movies/%s" % movie_id)
 
 
 if __name__ == "__main__":
@@ -303,6 +327,8 @@ if __name__ == "__main__":
 
     # Do not debug for demo
     app.debug = True
+
+    app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 
     connect_to_db(app)
 
