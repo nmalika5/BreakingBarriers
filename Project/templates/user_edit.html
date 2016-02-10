@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h1>Sign Up</h1>
+<h1>Edit Up</h1>
 
-<form action="/register" method="POST">
+<form action="//users/{{ user_id }}/edit_user" method="POST">
 
     <div>
         <label>
@@ -34,13 +34,10 @@
     </div> 
 
     <div>
-        <label>Language
-        <select name="lang_id">
-        {% for lang in languages %}
-          <option value= {{ lang[0] }} >{{ lang[1] }}</option>
-        {% endfor %}
-        </select>
-    </label>
+        <label>
+            Language
+            <input type="text" name="lang">
+        </label>
     </div>
 
     <div>

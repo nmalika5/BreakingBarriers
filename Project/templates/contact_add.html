@@ -3,7 +3,7 @@
 
 <h1>New Contact</h1>
 
-<form action="/users/<int:user_id>/add_contact" method="POST">
+<form action="/users/{{ user_id }}/add_contact" method="POST">
 
      <div>
         <label>
@@ -20,10 +20,13 @@
     </div> 
 
     <div>
-        <label>
-            Language
-            <input type="text" name="lang">
-        </label>
+        <label>Language
+        <select name="lang_id">
+        {% for lang in languages %}
+          <option value= {{ lang[0] }} >{{ lang[1] }}</option>
+        {% endfor %}
+        </select>
+    </label>
     </div>
 
     <div>

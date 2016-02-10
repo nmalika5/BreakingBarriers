@@ -2,8 +2,7 @@
 {% block content %}
 
    <h1>Send Message</h1>
-    <form action="/users/<int:user_id>/send_text" method="POST">
-
+    <form action="/users/{{ user_id }}/send_text/preview" method="POST">
         <div>
             <label>Message:
                 <textarea type="text" name="text" required></textarea>
@@ -16,7 +15,7 @@
             <input type="submit" value="Send message" id="send">
             <input type="submit" value="Preview message" id="preview">
         </div>
-
     </form>
+    <h4><a href="/users/{{ user_id }}">User's Profile</a></h4>
 
 {% endblock %}
