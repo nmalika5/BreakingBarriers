@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1>New Contact</h1>
+
+<form action="/users/<int:user_id>/add_contact" method="POST">
+
+     <div>
+        <label>
+            First Name
+            <input type="text" name="first_name">
+        </label>
+    </div> 
+
+    <div>
+        <label>
+            Last Name
+            <input type="text" name="last_name">
+        </label>
+    </div> 
+
+    <div>
+        <label>
+            Language
+            <input type="text" name="lang">
+        </label>
+    </div>
+
+    <div>
+        <label>
+            Phone
+            <input type="text" name="phone">
+        </label>
+    </div>
+
+    <div>
+        <input type="submit" value="Submit">
+    </div>
+
+</form>
+
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<br>
+<div class="well spaced" style="width:97%">
+  <h2>{{ user.first_name }} {{ user.last_name }}</h2>
+
+  <b><p style="color:red">Phone: {{ user.phone_number }}</p>
+  <p style="color:red">Preferred Language: {{ user.language.lang_name }}</p></b>
+  
+  <h4> A list of user's contacts </h4>
+  <ul> 
+    {% for contact in contacts %}
+    <li>Contact number and its preferred language: {{ contact[0] }} {{ contact[1] }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

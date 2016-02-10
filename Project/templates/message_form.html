@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+
+   <h1>Send Message</h1>
+    <form action="/users/<int:user_id>/send_text" method="POST">
+
+        <div>
+            <label>Message:
+                <textarea type="text" name="text" required></textarea>
+            </label>
+        </div>
+        {% if existing_message %}
+        Your message: {{ existing_message }}
+       {% endif %}
+        <div>
+            <input type="submit" value="Send message" id="send">
+            <input type="submit" value="Preview message" id="preview">
+        </div>
+
+    </form>
+
+{% endblock %}
