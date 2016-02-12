@@ -15,6 +15,15 @@
             <input type="submit" value="Send message" id="send">
             <input type="submit" value="Preview message" id="preview">
         </div>
+     <div>
+      <label>Choose a contact
+      <select name="contact_id">
+      {% for contact in contacts %}
+        <option value= {{ contact[0] }}> {{ contact[2] }} {{ contact[1] }} </option>
+      {% endfor %}
+      </select>
+    </label>
+    </div>
     </form>
     <h4><a href="/users/{{ user_id }}">User's Profile</a></h4>
 

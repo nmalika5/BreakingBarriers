@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+
+  <h4> The messages have been sent </h4>
+  <ul> 
+    {% for msg in trans_msgs %}
+    <li>Contact number and its message: {{ msg[0] }} </li>
+    {% endfor %}
+
+  </ul>
+</div>
+{% endblock %}

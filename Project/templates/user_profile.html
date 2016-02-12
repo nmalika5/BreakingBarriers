@@ -12,8 +12,10 @@
     {% for contact in contacts %}
     <li>Contact number and its preferred language: {{ contact[0] }} {{ contact[1] }}</li>
     {% endfor %}
+    
     <h4><a href="/users/{{ user_id }}/add_contact">Add Contacts</a></h4>
     <h4><a href="/users/{{ user_id }}/edit_user">Edit User</a></h4>
+    <h4><a href="/users/{{ user_id }}/send_text">Send Message</a></h4>
 
   </ul>
 </div>
