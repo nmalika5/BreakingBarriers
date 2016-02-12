@@ -9,4 +9,5 @@ blinker==1.3
 itsdangerous==0.24
 wsgiref==0.1.2
 psycopg2
+twilio
 yandex.translate

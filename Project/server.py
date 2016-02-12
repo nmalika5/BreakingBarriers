@@ -7,15 +7,17 @@ from flask_debugtoolbar import DebugToolbarExtension
 
 from model import connect_to_db, db, User, Language, Contact, Message, MessageLang, MessageContact
 
+from sqlalchemy import distinct
+
 import yandex
+
+import twilio_api
 
 app = Flask(__name__)
 
 # Required to use Flask sessions and the debug toolbar
 app.secret_key = "ABC"
 
-# Normally, if you use an undefined variable in Jinja2, it fails silently.
-# This is horrible. Fix this so that, instead, it raises an error.
 app.jinja_env.undefined = StrictUndefined
 
 
@@ -112,7 +114,7 @@ def user_list():
 @app.route("/users/<int:user_id>", methods=["GET"])
 def user_detail(user_id):
     """Show info about user."""
-
+ 
     user = User.query.get(user_id)
     user_contact_list = Contact.query.filter_by(user_id = user_id).all()
 
@@ -123,7 +125,8 @@ def user_detail(user_id):
         return redirect("/users/%s/add_contact" % user_id)
 
     for contact in user_contact_list:
-        contacts.append((contact.contact_phone, contact.language.lang_name))
+        contacts.append((contact.contact_phone, contact.language.lang_name, 
+                         contact.contact_first_name))
 
     return render_template("user_profile.html", user=user, contacts=contacts, 
                             user_id=user_id)
@@ -201,41 +204,67 @@ def add_contact(user_id):
 #     return render_template("message_list.html")
 
 #TODO send text route, GET, show form
+
 @app.route("/users/<int:user_id>/send_text", methods=["GET"])
 def show_text_form(user_id):
     """Show send message form"""
 
+    user_contact_list = Contact.query.filter_by(user_id = user_id).all()
+
+    contacts = []
+
+    if len(user_contact_list) == 0:
+        flash("The user has no contacts, you need to add one")
+        
+
+    for contact in user_contact_list:
+        contacts.append((contact.contact_phone, contact.language.lang_name, 
+                         contact.contact_first_name))
+
     existing_message = ""
 
     return render_template("message_form.html", existing_message=existing_message, 
-                            user_id=user_id)
+                            user_id=user_id, contacts=contacts)
 
-@app.route("/users/<int:user_id>/send_text", methods=["POST"])
+@app.route("/users/<int:user_id>/send_text/submit", methods=["POST"])
 def submit_text_form(user_id):
-    """Show send message form"""
+    """Send message"""
 
-    existing_message = ""
+    user_message = request.form.get("text")
 
-    return render_template("message_form.html", existing_message=existing_message)
+    if user_message:
+        user_id = session['user_id']
+        user = User.query.filter_by(user_id=user_id).all()[0]
+        print user
 
+        contacts = user.contacts
+
+        lang_code = user.language.yandex_lang_code
+        trans_msgs = []
+        contact_langs = []
+
+        for contact in contacts:
+            contact_lang = contact.language.yandex_lang_code
+            contact_langs.append(contact_lang)
+        unique_list_lang = list(set(contact_langs))
+        
+        trans_msgs_dict = {}
+        for unique_lang in unique_list_lang:
+            trans_msgs_dict[unique_lang] = yandex.translate_message(user_message, lang_code, unique_lang)
+        
+        contact_dict = {}
+        for contact in contacts:
+            contact_lang = contact.language.yandex_lang_code
+            contact_dict[contact.contact_id] = trans_msgs_dict[contact_lang]
+            twilio_api.send_message(trans_msgs_dict[contact_lang], contact.contact_phone)
     
-'''
-    #translate request to yandex 
+    flash('The translated texts have been sent')
+    return redirect("/users/%s" % user_id)
 
-    function(message, lang)
-    contact send it to
-    for every contact figure out which langs
-
-    for each of that pair
-
-    yandex call(with this stting from this lang to this lang)
-
-    original lang, target langs and call yandex once
-'''
 
 @app.route("/users/<int:user_id>/send_text/preview", methods=["POST"])
-def edit_message(user_id):
-    """Edit message"""
+def preview_message(user_id):
+    """Preview translated message"""
 
     user_message = request.form.get("text")
 
@@ -252,16 +281,13 @@ def edit_message(user_id):
             contact_lang = contact.language.yandex_lang_code
             if lang_code == contact_lang:
                 trans_msgs.append([user_message])
-            # TODO """if contacts have the same lang, send request to translate
-            #            only a unique lang, not based on the contact"""
             else:
-                trans_msgs.append(yandex.translate_message(user_message, lang_code, contact_lang)['text'])
+                trans_msgs.append(yandex.translate_message(user_message, lang_code, contact_lang))
 
     return render_template("translated_text.html", trans_msgs=trans_msgs)
 
-    # create Language controller that will have all above stuff, 
+    # TODO: create Language controller that will have all above stuff, 
     # calling translate_message() function from that controller in this route 
-
 
 @app.route("/users/<int:user_id>/send_text/send", methods=["POST"])
 def send_text():
