@@ -95,7 +95,7 @@ class Message(db.Model):
     message_status = db.Column(db.Integer, nullable=True) 
     message_sent_at = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
-    # original_lang_id = db.Column(db.Integer, db.ForeignKey('languages.lang_id'))
+    original_lang_id = db.Column(db.Integer)
     
     languages = db.relationship("Language", secondary="messages_langs", backref="messages")
     contacts = db.relationship("Contact", secondary="messages_contacts", backref="messages")
