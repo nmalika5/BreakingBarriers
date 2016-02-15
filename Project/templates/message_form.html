@@ -2,10 +2,10 @@
 {% block content %}
 
    <h1>Send Message</h1>
-    <form action="/users/{{ user_id }}/send_text/preview" method="POST">
+    <form action="/users/{{ user_id }}/send_text/submit" method="POST">
         <div>
             <label>Message:
-                <textarea type="text" name="text" required></textarea>
+                <textarea type="text" name="text" id = "message" required></textarea>
             </label>
         </div>
         {% if existing_message %}
@@ -13,7 +13,7 @@
        {% endif %}
         <div>
             <input type="submit" value="Send message" id="send">
-            <input type="submit" value="Preview message" id="preview">
+            <input type="button" value="Preview message" id="preview">
         </div>
      <div>
       <label>Choose a contact
@@ -24,7 +24,51 @@
       </select>
     </label>
     </div>
+    <br>
+    <div id="results"></div>
+    <div class="multiselect">
+    <div class="selectBox" onclick="showCheckboxes()">
+        <select name="contact_id">
+            <option>Select a contact</option>
+        </select>
+        <div class="overSelect"></div>
+    </div>
+        <div id="checkboxes" name="contact_id">
+        {% for contact in contacts %}
+        <label for= {{ contact[0] }}><input type="checkbox"/>{{ contact[2] }} {{ contact[1] }}</label><br>
+      {% endfor %}
+    </div>
+    </div>
+    </form>
+    <script>
+    var expanded = false;
+    function showCheckboxes() {
+        var checkboxes = $("#checkboxes");
+        if (!expanded) {
+            checkboxes.style.display = "block";
+            expanded = true;
+        } else {
+            checkboxes.style.display = "none";
+            expanded = false;
+        }
+    }
+    </script>
     </form>
     <h4><a href="/users/{{ user_id }}">User's Profile</a></h4>
+ <script type="text/javascript">
+        var button = $("#preview");
+        button.click(function() {
+            $.post("/users/{{ user_id }}/send_text/preview",
+            { 
+                text: $("#message").val()
+            },
+        function(data){
+            $("#message").val;
+            $("#results").text(data)
+    });
+    });
+        </script>
 
+ <script type="text/javascript">
+</script>
 {% endblock %}

@@ -2,16 +2,16 @@
 
 from jinja2 import StrictUndefined
 
-from flask import Flask, render_template, request, flash, redirect, session
+from flask import Flask, render_template, request, flash, redirect, session, jsonify
 from flask_debugtoolbar import DebugToolbarExtension
 
 from model import connect_to_db, db, User, Language, Contact, Message, MessageLang, MessageContact
 
-from sqlalchemy import distinct
+from sqlalchemy import distinct, func
 
-import yandex
+import yandex, twilio_api
 
-import twilio_api
+import json
 
 app = Flask(__name__)
 
@@ -133,7 +133,8 @@ def user_detail(user_id):
 
 
 
-    #vars = usercontroller.sstuff(hjhjgjl)
+    # TODO: create User controller that will handle user-related stuff
+    # ex: vars = usercontroller.stuff(bla)
 
 @app.route("/users/<int:user_id>/edit_user", methods=["GET"])
 def show_user_edit(user_id):
@@ -197,13 +198,12 @@ def add_contact(user_id):
 
 # @app.route("/users/<int:user_id>/messages", methods=["GET"])
 # def message_list(user_id):
-#     """Show info about user's messages."""
+#   """Show info about user's messages."""
 
-#     user_message = Message.query.filter_by(user_id=user_id, message_id=message_id.all()
+    # messages = Message.query.order_by('message_id').all()
+    # user_message = Message.query.filter_by(user_id=user_id, message_id=message_id.all()
+    # return render_template("message_list.html", messages=messages)
 
-#     return render_template("message_list.html")
-
-#TODO send text route, GET, show form
 
 @app.route("/users/<int:user_id>/send_text", methods=["GET"])
 def show_text_form(user_id):
@@ -232,32 +232,48 @@ def submit_text_form(user_id):
 
     user_message = request.form.get("text")
 
-    if user_message:
-        user_id = session['user_id']
-        user = User.query.filter_by(user_id=user_id).all()[0]
-        print user
-
-        contacts = user.contacts
-
-        lang_code = user.language.yandex_lang_code
-        trans_msgs = []
-        contact_langs = []
-
-        for contact in contacts:
-            contact_lang = contact.language.yandex_lang_code
-            contact_langs.append(contact_lang)
-        unique_list_lang = list(set(contact_langs))
-        
-        trans_msgs_dict = {}
-        for unique_lang in unique_list_lang:
-            trans_msgs_dict[unique_lang] = yandex.translate_message(user_message, lang_code, unique_lang)
-        
-        contact_dict = {}
-        for contact in contacts:
-            contact_lang = contact.language.yandex_lang_code
-            contact_dict[contact.contact_id] = trans_msgs_dict[contact_lang]
-            twilio_api.send_message(trans_msgs_dict[contact_lang], contact.contact_phone)
+    user_id = session['user_id']
+    user = User.query.filter_by(user_id=user_id).all()[0]
+    original_lang_id = user.language.lang_id
     
+    message = Message(message_text=user_message, user_id=user_id, 
+            original_lang_id=original_lang_id)
+    
+    flash("Message added.")
+    db.session.add(message)
+    db.session.commit()
+
+    contacts = user.contacts
+
+    lang_code = user.language.yandex_lang_code
+    trans_msgs = []
+    contact_langs = []
+
+    #making a unique list of contacts' langs
+    for contact in contacts:
+        contact_lang = contact.language.yandex_lang_code
+        contact_langs.append(contact_lang)
+    unique_list_lang = list(set(contact_langs))
+
+    trans_msgs_dict = {}
+    for unique_lang in unique_list_lang:
+        contact_lang_id = contact.language.lang_id
+        contact_msg_id = message.message_id
+        trans_msgs_dict[unique_lang] = yandex.translate_message(user_message, lang_code, unique_lang)   
+        msg_lang = MessageLang(lang_id=contact_lang_id, message_id=contact_msg_id)
+        db.session.add(msg_lang)
+    
+    contact_dict = {}
+    for contact in contacts:
+        contact_lang = contact.language.yandex_lang_code
+        contact_id = contact.contact_id
+        contact_msg_id = message.message_id
+        contact_dict[contact.contact_id] = trans_msgs_dict[contact_lang]
+        twilio_api.send_message(trans_msgs_dict[contact_lang], contact.contact_phone)
+        contact_msg = MessageContact(contact_id=contact_id, message_id=contact_msg_id)
+        db.session.add(contact_msg)    
+    
+    db.session.commit()
     flash('The translated texts have been sent')
     return redirect("/users/%s" % user_id)
 
@@ -268,6 +284,7 @@ def preview_message(user_id):
 
     user_message = request.form.get("text")
 
+    print user_message
     if user_message:
         user_id = session['user_id']
         user = User.query.filter_by(user_id=user_id).all()[0]
@@ -284,67 +301,54 @@ def preview_message(user_id):
             else:
                 trans_msgs.append(yandex.translate_message(user_message, lang_code, contact_lang))
 
-    return render_template("translated_text.html", trans_msgs=trans_msgs)
+    return json.dumps(trans_msgs)
 
     # TODO: create Language controller that will have all above stuff, 
     # calling translate_message() function from that controller in this route 
 
-@app.route("/users/<int:user_id>/send_text/send", methods=["POST"])
+@app.route("/", methods=["POST", "GET"])
 def send_text():
-    """Send text via Twilio"""
+    """Receive text via Twilio"""
+    
+    contact_phone = request.values.get("From", None)
+    response_message = request.values.get("Body", None)
+    print contact_phone
+    print response_message
 
-    message = request.form.get("text")
+    if contact_phone != None:
+        contact_phone = contact_phone[2:]
+        print contact_phone
+        contacts = Contact.query.filter_by(contact_phone=contact_phone).all()
+        contact_id_list = []
 
-    new_message = Message(message=message)
+        for contact in contacts:
+            contact_id_list.append(contact.contact_id)
+            print contact_id_list
+        msg_id = db.session.query(func.max(MessageContact.message_id)).filter(MessageContact.contact_id.in_(contact_id_list)).one()
+        print msg_id
+        msg = Message.query.filter_by(message_id=msg_id).one()
+        print msg
+        user = msg.user
+        print user
+        user_phone = user.phone_number
+        print user_phone
+        to_lang = user.language.yandex_lang_code
+        print to_lang
+        # all contacts that belong to that user and get a first one that matches the phone number
+        from_contact = Contact.query.filter((Contact.user_id==user.user_id) & (Contact.contact_phone==contact_phone)).first()
+        print from_contact
+        from_lang = from_contact.language.yandex_lang_code
+        print from_lang
+        translated_resp_msg = yandex.translate_message(response_message, from_lang, to_lang)
+        print translated_resp_msg
+        twilio_api.send_message(translated_resp_msg, user_phone)
 
-    #yandex to translate
-    #twilio to send
+        return ('', 204)
 
+    else:
+        render_template('home.html')
 
-# else:
-#             new_message = Message(message=user_message,
-#                                   user_id=user[0].user_id,
-#                                   )
-#             db.session.add(new_rating)
-
-#         db.session.commit()
-
-#         message = Message.query.get(message_id)
-#     db.session.add(new_message)
-#     db.session.commit()
-
-    flash("Message was sent.")
-
-#TODO send text POST and POST which will return AJAX response
-# @app.route("/users/<int:user_id>/send_text", methods=["POST"])
-# def preview_text():
-#     """Send text"""
-
-
-
-#     # post vars
-#     #save message and translated text from API
-#     #or save them both
-#     #condtions (if preview - returns form) - route/ shows translated page, and edit message
-#     #if sent - route to Twilio, confirmation shows up
-
-# # import requests - research for python or via JS,build route and
-#     return render_template("message_form.html")
-
-
-#TODO redirect, confirmation page if text is sent
-
-#"/users/<int:user_id>"/messages - all of their messages GET, pagination or dynamic AJAX look-up
-# @app.route("/users/<int:user_id>/messages", messages=["GET"])
-# def show_messages():
-#     """Show list of messages of a user"""
-
-#     messages = Message.query.order_by('message_id').all()
-#     return render_template("message_list.html", messages=messages)
-
-
-# #TODO pre-view -> same as 111, preview and send buttons, still AJAX, but diff route
-
+#TODO send text & preview buttons which will return AJAX response with diff routes
 
 
 if __name__ == "__main__":
@@ -362,10 +366,3 @@ if __name__ == "__main__":
     DebugToolbarExtension(app)
 
     app.run()
-
-
-    # users messages controller
-
-    # yandex api - take a massege, take an original lang and target lang and figure out what the reponse is
-
-    # messages,py file - handles back-end stuff thay handles messages
