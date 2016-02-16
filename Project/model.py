@@ -91,8 +91,6 @@ class Message(db.Model):
 
     message_id = db.Column(db.Integer, autoincrement=True, primary_key=True)
     message_text = db.Column(db.String(1000), nullable=True)
-    message_returned = db.Column(db.String(1000), nullable=True)
-    message_status = db.Column(db.Integer, nullable=True) 
     message_sent_at = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
     original_lang_id = db.Column(db.Integer)
@@ -104,10 +102,6 @@ class Message(db.Model):
     # Define relationship to user
     user = db.relationship("User",
                            backref=db.backref("messages", order_by=message_id))
-
-    # # Define relationship to language
-    # language = db.relationship("Language", 
-    #                             backref=db.backref("messages", order_by=message_id))
 
 
     def __repr__(self):
@@ -130,7 +124,8 @@ class MessageLang(db.Model):
     message_lang_id = db.Column(db.Integer, autoincrement=True, primary_key=True)
     lang_id = db.Column(db.Integer, db.ForeignKey('languages.lang_id'), nullable=False)
     message_id = db.Column(db.Integer, db.ForeignKey('messages.message_id'), nullable=False)
-
+    translated_message = db.Column(db.String(1500), nullable=True)
+    message_status = db.Column(db.Integer, nullable=True) 
 
 
     def __repr__(self):
@@ -140,6 +135,7 @@ class MessageLang(db.Model):
                                                                   self.lang_id,
                                                                   self.message_id,
                                                                   )
+
 class MessageContact(db.Model):
     """Association table between messages and contact tables."""
 
@@ -148,6 +144,8 @@ class MessageContact(db.Model):
     message_contact_id = db.Column(db.Integer, autoincrement=True, primary_key=True)
     contact_id = db.Column(db.Integer, db.ForeignKey('contacts.contact_id'), nullable=False)
     message_id = db.Column(db.Integer, db.ForeignKey('messages.message_id'), nullable=False)
+    message_status = db.Column(db.String(30), nullable=True) 
+
 
 
 
