@@ -14,10 +14,10 @@ client = TwilioRestClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 def send_message(user_message, contact_phone):
     """Send a translated text message to contacts"""
-    # twilio.rest.TwilioRestClient
     
     message = client.messages.create(body=user_message,
                                      to='+1' + contact_phone,
                                      from_=TWILIO_NUMBER
                                     )
 
+    return message

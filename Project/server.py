@@ -13,6 +13,11 @@ import yandex, twilio_api
 
 import json
 
+from gevent import monkey; monkey.patch_all()
+
+import datetime
+
+
 app = Flask(__name__)
 
 # Required to use Flask sessions and the debug toolbar
@@ -196,14 +201,6 @@ def add_contact(user_id):
 
     return redirect("/users/%s" % user_id)
 
-# @app.route("/users/<int:user_id>/messages", methods=["GET"])
-# def message_list(user_id):
-#   """Show info about user's messages."""
-
-    # messages = Message.query.order_by('message_id').all()
-    # user_message = Message.query.filter_by(user_id=user_id, message_id=message_id.all()
-    # return render_template("message_list.html", messages=messages)
-
 
 @app.route("/users/<int:user_id>/send_text", methods=["GET"])
 def show_text_form(user_id):
@@ -226,6 +223,7 @@ def show_text_form(user_id):
     return render_template("message_form.html", existing_message=existing_message, 
                             user_id=user_id, contacts=contacts)
 
+
 @app.route("/users/<int:user_id>/send_text/submit", methods=["POST"])
 def submit_text_form(user_id):
     """Send message"""
@@ -235,9 +233,10 @@ def submit_text_form(user_id):
     user_id = session['user_id']
     user = User.query.filter_by(user_id=user_id).all()[0]
     original_lang_id = user.language.lang_id
-    
+    msg_sent_at = datetime.datetime.now()
+
     message = Message(message_text=user_message, user_id=user_id, 
-            original_lang_id=original_lang_id)
+                      original_lang_id=original_lang_id, message_sent_at=msg_sent_at)
     
     flash("Message added.")
     db.session.add(message)
@@ -259,8 +258,11 @@ def submit_text_form(user_id):
     for unique_lang in unique_list_lang:
         contact_lang_id = contact.language.lang_id
         contact_msg_id = message.message_id
-        trans_msgs_dict[unique_lang] = yandex.translate_message(user_message, lang_code, unique_lang)   
-        msg_lang = MessageLang(lang_id=contact_lang_id, message_id=contact_msg_id)
+        trans_msg = yandex.translate_message(user_message, lang_code, contact_lang)['text']
+        trans_status = yandex.translate_message(user_message, lang_code, contact_lang)['code']
+        trans_msgs_dict[unique_lang] = trans_msg
+        msg_lang = MessageLang(lang_id=contact_lang_id, message_id=contact_msg_id, translated_message=trans_msg,
+                               message_status=trans_status)
         db.session.add(msg_lang)
     
     contact_dict = {}
@@ -269,13 +271,25 @@ def submit_text_form(user_id):
         contact_id = contact.contact_id
         contact_msg_id = message.message_id
         contact_dict[contact.contact_id] = trans_msgs_dict[contact_lang]
-        twilio_api.send_message(trans_msgs_dict[contact_lang], contact.contact_phone)
-        contact_msg = MessageContact(contact_id=contact_id, message_id=contact_msg_id)
+        msg = twilio_api.send_message(trans_msgs_dict[contact_lang], contact.contact_phone)
+        msg_status = msg.status
+        print "!!!!!!!!!"
+        print type(msg_status)
+        contact_msg = MessageContact(contact_id=contact_id, message_id=contact_msg_id, message_status=msg_status)
         db.session.add(contact_msg)    
     
     db.session.commit()
     flash('The translated texts have been sent')
     return redirect("/users/%s" % user_id)
+
+# @app.route("/users/<int:user_id>/messages", methods=["GET"])
+# def message_list(user_id):
+#     """Show info about user's messages."""
+
+#     messages = Message.query.all()
+#     user_message = Message.query.filter_by(user_id=user_id).all()
+
+#     return render_template("message_list.html", messages=messages)
 
 
 @app.route("/users/<int:user_id>/send_text/preview", methods=["POST"])
@@ -299,7 +313,8 @@ def preview_message(user_id):
             if lang_code == contact_lang:
                 trans_msgs.append([user_message])
             else:
-                trans_msgs.append(yandex.translate_message(user_message, lang_code, contact_lang))
+                trans_msg = yandex.translate_message(user_message, lang_code, contact_lang)['text']
+                trans_msgs.append(trans_msg)
 
     return json.dumps(trans_msgs)
 
@@ -312,35 +327,28 @@ def send_text():
     
     contact_phone = request.values.get("From", None)
     response_message = request.values.get("Body", None)
-    print contact_phone
-    print response_message
+
+    message_status = request.values.get("SmsStatus", None)
+
+    print "LOOK AT ME!!!" + message_status
+
 
     if contact_phone != None:
         contact_phone = contact_phone[2:]
-        print contact_phone
         contacts = Contact.query.filter_by(contact_phone=contact_phone).all()
         contact_id_list = []
 
         for contact in contacts:
             contact_id_list.append(contact.contact_id)
-            print contact_id_list
         msg_id = db.session.query(func.max(MessageContact.message_id)).filter(MessageContact.contact_id.in_(contact_id_list)).one()
-        print msg_id
         msg = Message.query.filter_by(message_id=msg_id).one()
-        print msg
         user = msg.user
-        print user
         user_phone = user.phone_number
-        print user_phone
         to_lang = user.language.yandex_lang_code
-        print to_lang
         # all contacts that belong to that user and get a first one that matches the phone number
         from_contact = Contact.query.filter((Contact.user_id==user.user_id) & (Contact.contact_phone==contact_phone)).first()
-        print from_contact
         from_lang = from_contact.language.yandex_lang_code
-        print from_lang
         translated_resp_msg = yandex.translate_message(response_message, from_lang, to_lang)
-        print translated_resp_msg
         twilio_api.send_message(translated_resp_msg, user_phone)
 
         return ('', 204)
