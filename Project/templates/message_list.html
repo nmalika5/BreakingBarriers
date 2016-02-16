@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+
+  <h4> The messages of that user </h4>
+  <ul> 
+    {% for msg in messages %}
+    <li> {{ msg }} </li>
+    {% endfor %}
+
+  </ul>
+{% endblock %}
