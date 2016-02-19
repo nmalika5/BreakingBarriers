@@ -12,11 +12,26 @@
     {% for contact in contacts %}
     <li>Contact number and its preferred language: {{ contact[0] }} {{ contact[1] }}</li>
     {% endfor %}
-    
+  </ul>
+
     <h4><a href="/users/{{ user_id }}/add_contact">Add Contacts</a></h4>
     <h4><a href="/users/{{ user_id }}/edit_user">Edit User</a></h4>
     <h4><a href="/users/{{ user_id }}/send_text">Send Message</a></h4>
 
-  </ul>
+    <input type="button" value="import contacts" id="import">
+    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+    <script>
+    $(document).ready(function(){
+      $("#import").click(function(e){
+          e.preventDefault();
+        $.ajax({type: "GET",
+                url: "/users/{{ user_id }}/contacts",
+                dataType: "json",
+                success:function(response){
+                  window.location.href = response;
+        }});
+      });
+    });
+    </script>
 </div>
 {% endblock %}

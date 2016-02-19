@@ -1,21 +1,22 @@
 """Text Translator."""
 
 from jinja2 import StrictUndefined
-
+import flask
 from flask import Flask, render_template, request, flash, redirect, session, jsonify
 from flask_debugtoolbar import DebugToolbarExtension
-
 from model import connect_to_db, db, User, Language, Contact, Message, MessageLang, MessageContact
-
 from sqlalchemy import distinct, func
-
 import yandex, twilio_api
-
 import json
-
 from gevent import monkey; monkey.patch_all()
-
 import datetime
+from xml.etree import ElementTree
+import gmail_contacts
+import pickle
+import gdata.contacts.client
+import gmail_contacts
+
+
 
 
 app = Flask(__name__)
@@ -30,7 +31,23 @@ app.jinja_env.undefined = StrictUndefined
 def index():
     """Homepage."""
 
-    return render_template("home.html")
+    key = request.args.get("code")
+    
+    if key:
+        user_id = flask.session['user_id']
+        user = User.query.get(user_id)
+        token = pickle.load(open('token' + str(user_id) + '.p', 'rb'))
+        token.get_access_token(key)
+        client = gdata.contacts.client.ContactsClient(source='appname')
+        client = token.authorize(client)
+        feed = client.GetContacts()
+        contacts = gmail_contacts.parse_contacts(user, str(feed))
+
+        return redirect("/users/%s" % user.user_id)
+
+    else:
+        
+        return render_template("home.html")
 
 
 @app.route('/register', methods=['GET'])
@@ -273,8 +290,6 @@ def submit_text_form(user_id):
         contact_dict[contact.contact_id] = trans_msgs_dict[contact_lang]
         msg = twilio_api.send_message(trans_msgs_dict[contact_lang], contact.contact_phone)
         msg_status = msg.status
-        print "!!!!!!!!!"
-        print type(msg_status)
         contact_msg = MessageContact(contact_id=contact_id, message_id=contact_msg_id, message_status=msg_status)
         db.session.add(contact_msg)    
     
@@ -330,8 +345,6 @@ def send_text():
 
     message_status = request.values.get("SmsStatus", None)
 
-    print "LOOK AT ME!!!" + message_status
-
 
     if contact_phone != None:
         contact_phone = contact_phone[2:]
@@ -357,6 +370,14 @@ def send_text():
         render_template('home.html')
 
 #TODO send text & preview buttons which will return AJAX response with diff routes
+
+@app.route("/users/<int:user_id>/contacts", methods=["POST", "GET"])
+def redirect_gmail(user_id):
+    """Redirect the user to gmail access page"""
+
+    authorized_url = gmail_contacts.authorize_url(flask.session, user_id)
+
+    return json.dumps(authorized_url)
 
 
 if __name__ == "__main__":
