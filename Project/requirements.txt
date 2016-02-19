@@ -11,3 +11,10 @@ wsgiref==0.1.2
 psycopg2
 twilio
 yandex.translate
+gdata
+flask-login
+lxml
+gevent-socketio
+gevent
+gevent-websocket
+greenlet
