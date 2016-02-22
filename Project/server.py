@@ -17,7 +17,63 @@ import gdata.contacts.client
 import gmail_contacts
 
 
+from socketio import socketio_manage
+from socketio.namespace import BaseNamespace
+from socketio.mixins import RoomsMixin, BroadcastMixin
 
+
+
+# The socket.io namespace
+class ChatNamespace(BaseNamespace, RoomsMixin, BroadcastMixin):
+
+    def room_name(self, user1_id, user2_id):
+        """Create a unique room for each pair of users"""
+
+        if user1_id < user2_id:
+            room_name = str(user1_id) + "," + str(user2_id)
+        else:
+            room_name = str(user2_id) + "," + str(user1_id)
+
+        return str(room_name)
+    
+    def on_nickname(self, nickname):
+        """Handle nicknames"""
+
+        user1 = User.query.filter_by(user_id=nickname['user1']).one()
+        user2 = User.query.filter_by(user_id=nickname['user2']).one()
+        
+        self.environ.setdefault('nicknames', []).append(nickname['nickname'])
+        self.socket.session['nickname'] = nickname['nickname']
+
+        room = self.room_name(user1.user_id, user2.user_id)
+
+        self.emit_to_room(room, 'nicknames', self.socket.session['nickname'],
+                          self.environ['nicknames'])
+        self.emit_to_room(room, 'announcement', self.socket.session['nickname'], 
+                          '%s has connected' % nickname['nickname'])
+        self.join(room)
+
+
+    def on_user_message(self, trans_msg):
+        """Translate a message and send it to the room"""
+
+        user1 = User.query.filter_by(user_id=trans_msg['user1']).one()
+        user2 = User.query.filter_by(user_id=trans_msg['user2']).one()
+
+        trans_msg = yandex.translate_message(trans_msg['message'], 
+                                        user1.language.yandex_lang_code, 
+                                        user2.language.yandex_lang_code)['text']
+
+        room = self.room_name(user1.user_id, user2.user_id)
+        print "AAAAAAAAAAAAAAA" + " " + room
+        self.emit_to_room(room, 'msg_to_room', 
+                        self.socket.session['nickname'], 
+                        str(trans_msg))
+
+
+    def recv_message(self, message):
+        """Receive a message"""
+        print "PING!!!", message
 
 app = Flask(__name__)
 
@@ -162,8 +218,18 @@ def user_detail(user_id):
 def show_user_edit(user_id):
     """Edit user's info."""
 
+    user = User.query.get(user_id)
+    first_name = user.first_name
+    last_name = user.last_name
+    password = user.password
+    email = user.email
+    phone_number = user.phone_number
+    lang_name = user.language.lang_name
+
+ 
     return render_template("user_edit.html", user_id=user_id, first_name=first_name,
-                            last_name=last_name, email= email, password=password)
+                            last_name=last_name, email= email, password=password, 
+                            phone_number=phone_number, lang_name=lang_name)
 
 
 @app.route("/users/<int:user_id>/edit_user", methods=["POST"])
@@ -379,19 +445,40 @@ def redirect_gmail(user_id):
 
     return json.dumps(authorized_url)
 
+@app.route('/users/<int:user1>/chat/<int:user2>')
+def chat(user1, user2):
+    """Renders chat for each pair of users"""
+
+    return render_template('chat.html', user1=user1, user2=user2)
+
+@app.route("/socket.io/<path:path>")
+def run_socketio(path):
+    """Runs sockets"""
+
+    socketio_manage(request.environ, {'': ChatNamespace})
+
 
 if __name__ == "__main__":
     # We have to set debug=True here, since it has to be True at the point
     # that we invoke the DebugToolbarExtension
 
     # Do not debug for demo
-    app.debug = True
 
-    app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
+    DebugToolbarExtension(app)
 
     connect_to_db(app)
 
-    # Use the DebugToolbar
-    DebugToolbarExtension(app)
+    print 'Listening on http://localhost:5000'
+    app.debug = True
+    import os
+    from werkzeug.wsgi import SharedDataMiddleware
+    app = SharedDataMiddleware(app, {
+        '/': os.path.join(os.path.dirname(__file__), 'static')
+        })
+    from socketio.server import SocketIOServer
+    SocketIOServer(('0.0.0.0', 5000), app,
+        resource="socket.io", policy_server=False).serve_forever()
 
-    app.run()
+
+    app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
+
