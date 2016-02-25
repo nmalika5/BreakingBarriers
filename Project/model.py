@@ -1,6 +1,7 @@
 """Models and database functions for my project."""
 
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # This is the connection to the SQLite database; we're getting this through
 # the Flask-SQLAlchemy helper library. On this, we can find the `session`
@@ -35,6 +36,13 @@ class User(db.Model):
 
         return "<User user_id=%s, phone_number=%s>" % (self.user_id, self.phone_number)
                                                                   
+    def set_password(self, password):
+        """Hash passwords"""
+        self.password = generate_password_hash(password)
+
+    def check_password(self, password):
+        """Check passwords"""
+        return check_password_hash(self.password, password)
 
 
 class Language(db.Model):
