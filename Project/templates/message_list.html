@@ -4,7 +4,7 @@
   <h4> The messages of that user </h4>
   <ul> 
     {% for msg in messages %}
-    <li> {{ msg }} </li>
+    <li> {{ msg[0] }} {{ msg[1] }} {{ msg[2] }} </li>
     {% endfor %}
 
   </ul>

@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+  ul {
+    list-style-type: none;
+    margin: 5px;
+  }
+</style>
+<div class="well spaced" style="width:97%">
+  <h2>{{ user.first_name }} {{ user.last_name }}</h2>
+
+  <b><p style="color:red">Phone: {{ user.phone_number }}</p>
+  <p style="color:red">Preferred Language: {{ user.language.lang_name }}</p></b>
+  <h4> A list of user's contacts </h4>
+  
+  <div ng-app="contactApp">
+  <ul ng-controller="contactsController">
+    <li ng-repeat="contact in contacts">
+    <label>Phone Number
+      <input type="text" id="phoneNumber" ng-model="contact[0]">
+    </label>
+    <label>Language
+    <input type="text" id="langName" ng-model="contact[1]"]>
+    </label>
+    <label>First Name
+      <input type="text" id="firstName" ng-model="contact[2]"]>
+    </label>
+    <label>Last Name
+      <input type="text" id="firstName" ng-model="contact[3]"]>
+    </label>
+
+    <a href="#" ng-click="delete(contact)">Delete</a>
+    <a href="#" ng-click="edit(contact)">Edit</a>
+    </li>
+    </ul>
+  </div>
+
+    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+    <script type="text/javascript">
+    
+    var app = angular.module("contactApp", []);
+    app.config(['$interpolateProvider', function($interpolateProvider) {
+    $interpolateProvider.startSymbol('{[');
+    $interpolateProvider.endSymbol(']}');
+    }]);
+
+    app.controller("contactsController", function($scope, $http) {
+
+      $scope.contacts = {{ contacts|safe }};
+      console.log($scope.contacts);
+
+      $scope.delete = function(contact) {
+        var index = $scope.contacts.indexOf(contact);
+        alert("Are you sure you want to delete this contact: " + index);
+        $scope.contacts.splice(index, 1);
+        console.log(contact);
+        var deleteEndpoint ="/users/{{ user_id }}/contacts/" + contact[4];
+        $http.delete(deleteEndpoint).success(function(result) { console.log(result);
+        $scope.resultDelete = result;
+        }).error(function() {
+      console.log("error");
+      });
+      };
+
+      $scope.edit = function(contact) {
+        $scope.current = contact;
+        console.log(contact);
+        var data = { "phone": contact[0], 
+                     "language": contact[1],
+                     "fname": contact[2],
+                     "lname": contact[3]
+                    };
+        var editEndpoint ="/users/{{ user_id }}/contacts/" + contact[4];
+        $http.put(editEndpoint, data).success(
+          function(data, status, headers) {
+            alert("Contact updated");
+        });
+      };
+    });
+  </script>
+</script>
+
+    <h4><a href="/users/{{ user_id }}/add_contact">Add Contacts</a></h4>
+    <h4><a href="/users/{{ user_id }}/edit_user">Edit User</a></h4>
+    <h4><a href="/users/{{ user_id }}/send_text">Send Message</a></h4>
+    <h4><a href="/users/{{ user_id }}/chat/{{ user_id }}">Chat</a></h4>
+
+  <input type="button" value="import contacts" id="import">
+    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+    <script>
+    $(document).ready(function(){
+      $("#import").click(function(e){
+          e.preventDefault();
+        $.ajax({type: "GET",
+                url: "/users/{{ user_id }}/contacts",
+                dataType: "json",
+                success:function(response){
+                  window.location.href = response;
+        }});
+      });
+    });
+    </script>
+
+</div>
+{% endblock %}
