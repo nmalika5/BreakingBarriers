@@ -42,7 +42,10 @@ class User(db.Model):
 
     def check_password(self, password):
         """Check passwords"""
+
         return check_password_hash(self.password, password)
+
+
 
 
 class Language(db.Model):
@@ -61,8 +64,20 @@ class Language(db.Model):
         return "<Lang id=%s lang name=%s, lang code = %s>" % (self.lang_id, 
                                                               self.lang_name,
                                                               self.lang_code,
-                                                              )
+                                                              )  
+    
+    @staticmethod                                                
+    def lang_iteration():
+        """Iterate through a list of languages"""
+    
+        language_list = Language.query.all()
 
+        languages = []
+
+        for lang in language_list:
+            languages.append((lang.lang_id, lang.lang_name))
+
+        return languages
 
 class Contact(db.Model):
     """Contact info of a user."""

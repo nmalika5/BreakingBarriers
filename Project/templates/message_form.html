@@ -34,7 +34,7 @@
     </div>
         <div id="checkboxes" name="contact_id">
         {% for contact in contacts %}
-        <label for= {{ contact[0] }}><input type="checkbox"/>{{ contact[2] }} {{ contact[1] }}</label><br>
+        <label for= {{ contact[0] }}><input name="{{ contact[3] }}" type="checkbox"/>{{ contact[2] }} {{ contact[1] }}</label><br>
       {% endfor %}
     </div>
     </div>

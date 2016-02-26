@@ -11,24 +11,6 @@
   </script>
 </head>
 <body>
-<nav class="navbar navbar-inverse">
-  <div class="container-fluid">
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>                        
-      </button>
-
-      <div class="navbar-header">
-        <a class="navbar-brand" href="/">My App</a>
-      </div>
-    </div>
-    <div class="collapse navbar-collapse" id="myNavbar">
-      <ul class="nav navbar-nav">
-        <li><a href="#">About</a></li>
-      </ul>
-      <ul class="nav navbar-nav navbar-right">
 
     {% if "user_id" in session %}
       <a href="/logout">Logout</a>

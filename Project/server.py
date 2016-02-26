@@ -6,7 +6,7 @@ from flask import Flask, render_template, request, flash, redirect, session, jso
 from flask_debugtoolbar import DebugToolbarExtension
 from model import connect_to_db, db, User, Language, Contact, Message, MessageLang, MessageContact
 from sqlalchemy import distinct, func
-import yandex, twilio_api
+import yandex, twilio_api, MessageController, UserController
 import json
 from gevent import monkey; monkey.patch_all()
 import datetime
@@ -94,12 +94,7 @@ def index():
 def register_form():
     """Show form for user signup."""
 
-    language_list = Language.query.all()
-
-    languages = []
-
-    for lang in language_list:
-        languages.append((lang.lang_id, lang.lang_name))
+    languages = Language.lang_iteration()
     
     return render_template("register_form.html", languages=languages)
 
@@ -180,18 +175,12 @@ def user_detail(user_id):
     """Show info about user."""
  
     user = User.query.get(user_id)
-    user_contact_list = Contact.query.filter_by(user_id = user_id).all()
+    
+    contacts = UserController.contact_iteration(user_id)
 
-    contacts = []
-
-    if len(user_contact_list) == 0:
-        flash("The user has no contacts")
+    if len(contacts) == 0:
+        flash("The user has no contacts, you need to add one")
         return redirect("/users/%s/add_contact" % user_id)
-
-    for contact in user_contact_list:
-        contacts.append((contact.contact_phone, contact.language.lang_name, 
-                         contact.contact_first_name, contact.contact_last_name, 
-                         contact.contact_id))
 
     return render_template("contact_edit.html", user=user, 
                             user_id=user_id, contacts=json.dumps(contacts))
@@ -199,9 +188,6 @@ def user_detail(user_id):
     # return render_template("user_profile.html", user=user, 
     #                         user_id=user_id, contacts=contacts)
 
-
-    # TODO: create User controller that will handle user-related stuff
-    # ex: vars = usercontroller.stuff(bla)
 
 @app.route("/users/<int:user_id>/edit_user", methods=["GET"])
 def show_user_edit(user_id):
@@ -215,13 +201,7 @@ def show_user_edit(user_id):
     phone_number = user.phone_number
     lang_name = user.language.lang_name
 
-    language_list = Language.query.all()
-
-    languages = []
-
-    for lang in language_list:
-        languages.append((lang.lang_id, lang.lang_name))
-
+    languages = Language.lang_iteration()
  
     return render_template("user_edit.html", user_id=user_id, first_name=first_name,
                             last_name=last_name, email= email, password=password, 
@@ -267,12 +247,9 @@ def show_contact_form(user_id):
     """Show form for contact signup."""
 
     user = User.query.get(user_id)
-    language_list = Language.query.all()
 
-    languages = []
+    languages = Language.lang_iteration()
 
-    for lang in language_list:
-        languages.append((lang.lang_id, lang.lang_name))
     return render_template("contact_add.html", user_id=user_id, languages=languages)
 
 
@@ -340,20 +317,15 @@ def edit_contact(user_id, contact_id):
 def show_text_form(user_id):
     """Show send message form"""
 
-    user_contact_list = Contact.query.filter_by(user_id = user_id).all()
+    contacts = UserController.contact_iteration(user_id)
 
-    contacts = []
 
-    if len(user_contact_list) == 0:
+    if len(contacts) == 0:
         flash("The user has no contacts, you need to add one")
-        
+        return redirect("/users/%s/add_contact" % user_id)
 
-    for contact in user_contact_list:
-        contacts.append((contact.contact_phone, contact.language.lang_name, 
-                         contact.contact_first_name))
 
     existing_message = ""
-
     return render_template("message_form.html", existing_message=existing_message, 
                             user_id=user_id, contacts=contacts)
 
@@ -363,6 +335,9 @@ def submit_text_form(user_id):
     """Send message"""
 
     user_message = request.form.get("text")
+    contact_id_list = MessageController.get_numeric_list(request.form.keys())
+
+    contacts = MessageController.get_contact_objects(contact_id_list)
 
     user_id = session['user_id']
     user = User.query.filter_by(user_id=user_id).all()[0]
@@ -376,42 +351,20 @@ def submit_text_form(user_id):
     db.session.add(message)
     db.session.commit()
 
-    contacts = user.contacts
 
     lang_code = user.language.yandex_lang_code
     contact_langs = []
 
-    #making a unique list of contacts' langs
-    unique_lang_dict = {}
-    for contact in contacts:
-        contact_lang = contact.language.yandex_lang_code
-        unique_lang_dict[contact.language.lang_id] = contact_lang
+    unique_lang_dict = MessageController.get_unique_langs(contacts)
 
-    trans_msgs_dict = {}
-    trans_msgs = []
-    for unique_lang_id in unique_lang_dict:
-        unique_lang_code = unique_lang_dict[unique_lang_id]
-        contact_msg_id = message.message_id
-        trans_msg = yandex.translate_message(user_message, lang_code, unique_lang_code)
-        trans_text = trans_msg['text']
-        trans_status = trans_msg['code']
-        trans_msgs_dict[unique_lang_code] = trans_text
-        msg_lang = MessageLang(lang_id=unique_lang_id, message_id=contact_msg_id, translated_message=trans_text,
-                               message_status=trans_status)
-        db.session.add(msg_lang)
-    
-    contact_dict = {}
-    for contact in contacts:
-        contact_lang = contact.language.yandex_lang_code
-        contact_id = contact.contact_id
-        contact_msg_id = message.message_id
-        contact_dict[contact.contact_id] = trans_msgs_dict[contact_lang]
-        msg = twilio_api.send_message(trans_msgs_dict[contact_lang], contact.contact_phone)
-        msg_status = msg.status
-        contact_msg = MessageContact(contact_id=contact_id, message_id=contact_msg_id, message_status=msg_status)
-        db.session.add(contact_msg)    
-    
-    db.session.commit()
+    translate_langs_dict = MessageController.translate_unique_langs(unique_lang_dict,
+                                                                    user_message, 
+                                                                    lang_code, message.message_id,
+                                                                    True)
+
+    MessageController.send_trans_texts(contacts, translate_langs_dict,
+                                      message.message_id)
+
     flash('The translated texts have been sent')
     return redirect("/users/%s" % user_id)
 
@@ -444,24 +397,20 @@ def preview_message(user_id):
     if user_message:
         user_id = session['user_id']
         user = User.query.filter_by(user_id=user_id).all()[0]
+        lang_code = user.language.yandex_lang_code
 
         contacts = user.contacts
 
-        lang_code = user.language.yandex_lang_code
-        trans_msgs = []
+        unique_lang_dict = MessageController.get_unique_langs(user_id)
 
-        for contact in contacts:
-            contact_lang = contact.language.yandex_lang_code
-            if lang_code == contact_lang:
-                trans_msgs.append([user_message])
-            else:
-                trans_msg = yandex.translate_message(user_message, lang_code, contact_lang)['text']
-                trans_msgs.append(trans_msg)
+        translate_langs_dict = MessageController.translate_unique_langs(unique_lang_dict,
+                                                                        user_message, 
+                                                                        lang_code, 
+                                                                        False,
+                                                                        False)
 
-    return json.dumps(trans_msgs)
+    return json.dumps(translate_langs_dict.values())
 
-    # TODO: create Language controller that will have all above stuff, 
-    # calling translate_message() function from that controller in this route 
 
 @app.route("/", methods=["POST", "GET"])
 def send_text():
