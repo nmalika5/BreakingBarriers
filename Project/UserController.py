@@ -1,8 +1,11 @@
 from model import connect_to_db, db, User, Language, Contact, Message, MessageLang, MessageContact
+from sqlalchemy import distinct, func
+
 
 def contact_iteration(user_id):
-    """Iterate through a list of contacts"""
-
+    """ int -> [] of Contact objects
+        Iterate through a list of contacts"""
+    
     user_contact_list = Contact.query.filter_by(user_id = user_id).all()
 
     contacts = []
@@ -15,4 +18,6 @@ def contact_iteration(user_id):
     return contacts
 
 
-
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()

@@ -62,9 +62,3 @@ def parse_contacts(user, contacts_xml=None):
 
     db.session.commit()
 
-
-
-# #contact's photo
-# <link rel='http://schemas.google.com/contacts/2008/rel#photo' type='image/*'
-#     href='http://google.com/m8/feeds/photos/media/liz%40gmail.com/c9012de'
-#     gd:etag='"KTlcZWs1bCp7ImBBPV43VUV4LXEZCXERZAc."'/>

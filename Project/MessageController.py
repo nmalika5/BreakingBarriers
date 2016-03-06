@@ -3,8 +3,9 @@ from sqlalchemy import distinct, func
 import yandex, twilio_api
 
 def get_unique_langs(contacts):
-    """[] of Contact class -> dict with key as int & value string
-    Get a dict of unique langs"""
+    """[] of Contact class -> dict with key as int & value string  
+        Get a dict of unique langs
+    """
 
     #making a unique list of contacts' langs
     unique_lang_dict = {}
@@ -12,10 +13,10 @@ def get_unique_langs(contacts):
         contact_lang = contact.language.yandex_lang_code
         unique_lang_dict[contact.language.lang_id] = contact_lang
 
-    return unique_lang_dict #returns a dict with key as int & value string
+    return unique_lang_dict
 
 def translate_unique_langs(unique_lang_dict, user_message, lang_code, message_id, add_msg):
-    """ dict, string, string, int -> dict with key as string & value-string
+    """ dict, string, string, int, bool  -> dict with key as string & value-string
     Translate unique langs"""
 
     trans_msgs_dict = {}
@@ -23,7 +24,8 @@ def translate_unique_langs(unique_lang_dict, user_message, lang_code, message_id
         unique_lang_code = unique_lang_dict[unique_lang_id]
         trans_msg = yandex.translate_message(user_message, lang_code, unique_lang_code)
         trans_text = trans_msg['text']
-        trans_msgs_dict[unique_lang_code] = trans_text
+        trans_str = ''.join(trans_text)
+        trans_msgs_dict[unique_lang_code] = trans_str
 
         if add_msg:
             msg_lang = add_trans_msg(unique_lang_id, trans_msg, message_id)
@@ -32,11 +34,14 @@ def translate_unique_langs(unique_lang_dict, user_message, lang_code, message_id
 
 
 def add_trans_msg(unique_lang_id, trans_msg, message_id):
-    """Add translated msg to MessageLang table"""
+    """ int, dict, int -> an oject of MessageLang
+    Add translated msg to MessageLang table"""
 
     trans_text = trans_msg['text']
+    #convert from [] of unicode chars to unicode str
+    trans_str = ''.join(trans_text)
     trans_status = trans_msg['code']
-    msg_lang = MessageLang(lang_id=unique_lang_id, message_id=message_id, translated_message=trans_text,
+    msg_lang = MessageLang(lang_id=unique_lang_id, message_id=message_id, translated_message=trans_str,
                                message_status=trans_status)
     
     db.session.add(msg_lang)
@@ -63,15 +68,22 @@ def add_sent_msg(msg_status, contact_id, message_id):
 
 
 def get_numeric_list(contacts):
-    """[] of string -> [] of int
-    Get only integers out of the list"""
+    """[] of string -> [] of string
+    
+    Get only string numbers out of the list of strings:
+
+        >>> get_numeric_list(['text', '2', '5', 'name'])
+        ['2', '5']
+    """
 
     numeric_list = [i for i in contacts if i.isdigit()]
 
     return numeric_list
 
 def get_contact_objects(numeric_list):
-    """Get a list of contact objects"""
+    """ [] of ints -> [] of Contact objects
+        Get a list of contact objects:
+    """
 
     contact_list = []
 
@@ -81,3 +93,6 @@ def get_contact_objects(numeric_list):
 
     return contact_list
 
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
