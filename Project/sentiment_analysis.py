@@ -2,21 +2,10 @@ from __future__ import division
 from textblob import TextBlob
 from model import connect_to_db, db, User, Language, Contact, Message, MessageLang, MessageContact
 
-"""
-1. Analyze the messages sent by the user:
-    > analyze how many were positive
-    > how many were negative
-    > which contacts got the most positive texts
-    > which ones got the negative texts
-"""
 
 def get_messages(user_id):
-    """ int -> [] of message objects
-        
+    """ int -> [] of message objects 
         Get user's messages:
-
-        >>> get_messages(3)
-        [('This is a russian test', '2015-02-07 00:00:00', 3, 5)]
     """
     user_message_list = Message.query.filter_by(user_id = user_id).all()
 
@@ -28,11 +17,8 @@ def get_messages(user_id):
     return messages
 
 def analyze_messages(messages):
-    """ [] of msg objects -> [] of floats
-        
-        Do sentiment analysis on user's messages:
-
-        >>> analyze_messages([('This is a russian test', '2015-02-07 00:00:00', 3, 5)]
+    """ [] of msg objects -> [] of textblob objects    
+        Do sentiment analysis on user's messages
     """
 
     sentiment_list = []
@@ -46,7 +32,7 @@ def analyze_messages(messages):
     return sentiment_list
 
 def categorize_messages(sentiment_list):
-    """ [] of floats -> 3 ints in a []
+    """ [] of textblob objects -> 3 ints in a []
     Categorize messages into 3 sections"""
 
     positive = 0
@@ -106,7 +92,7 @@ def get_contacts(contact_dict):
     return output_list
 
 def break_list(output_list):
-    """[] of tuples -> [] of four []"""
+    """[] of tuple objects -> [] of four []"""
 
     contact_names = []
     positive_msgs = []
