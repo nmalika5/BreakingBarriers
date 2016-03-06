@@ -3,43 +3,66 @@
 
 <h1>New Contact</h1>
 
-<form action="/users/{{ user_id }}/add_contact" method="POST">
+<div ng-app="validationApp" ng-controller="contactController">
+<div class="container">
+<div class="col-sm-8 col-sm-offset-2">
+<form name="contactForm" action="/users/{{ user_id }}/add_contact" method="POST" ng-submit="submitForm(contactForm.$valid)" novalidate>
 
-     <div>
+     <div class="form-group" ng-class="{ 'has-error' : contactForm.fname.$invalid && !contactForm.fname.$pristine }">
         <label>
             First Name
-            <input type="text" name="first_name">
+            <input type="text" name="first_name" class="form-control" ng-model="fname" required>
+            <p ng-show="contactForm.fname.$invalid && !contactForm.fname.$pristine" class="help-block">Contact's first name is required.</p>
         </label>
-    </div> 
-
-    <div>
+    </div>
+    <div class="form-group" ng-class="{ 'has-error' : contactForm.lname.$invalid && !contactForm.lname.$pristine }">
         <label>
             Last Name
-            <input type="text" name="last_name">
+            <input type="text" name="last_name" class="form-control" ng-model="lname" required>
+            <p ng-show="contactForm.lname.$invalid && !contactForm.lname.$pristine" class="help-block">Contact's last name is required.</p>
         </label>
     </div> 
 
-    <div>
+    <div class="form-group" ng-class="{ 'has-error' : contactForm.lang.$invalid && !contactForm.lang.$pristine }">
         <label>Language
-        <select name="lang_id">
+        <select name="lang_id" class="form-control" ng-model="lang" required>
         {% for lang in languages %}
           <option value= {{ lang[0] }} >{{ lang[1] }}</option>
         {% endfor %}
+        <p ng-show="contactForm.lang.$invalid && !contactForm.lang.$pristine" class="help-block">Contact's language is required.</p>
         </select>
     </label>
     </div>
 
-    <div>
+    <div class="form-group" ng-class="{ 'has-error' : contactForm.phone.$invalid && !contactForm.phone.$pristine }">
         <label>
             Phone
-            <input type="text" name="phone">
+            <input type="text" name="phone" class="form-control" ng-model="phone" ng-minlength="10" ng-maxlength="10" required>
+            <p ng-show="contactForm.phone.$error.minlength" class="help-block">Phone is too short.</p>
+            <p ng-show="contactForm.phone.$error.maxlength" class="help-block">Phone is too long.</p>
         </label>
     </div>
 
     <div>
-        <input type="submit" value="Submit">
+        <input type="submit" value="Submit" class="btn btn-primary" ng-disabled="contactForm.$invalid">
     </div>
-
+</div>
+</div>
+</div>
 </form>
+
+<script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+<script type="text/javascript">
+
+    var validationApp = angular.module('validationApp', []);
+    validationApp.controller('contactController', function($scope) {
+        $scope.submitForm = function(isValid) {
+            if (isValid) {
+                alert('The contact has been added');
+            }
+        };
+    });
+</script>
+</script>
 
 {% endblock %}

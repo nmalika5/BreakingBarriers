@@ -1,0 +1,20 @@
+<table class="table table-striped">
+        <thead>
+        <tr>
+            <th>Translated Message</th>
+            <th>Contact Name</th>
+            <th>Contact's Language</th>
+        </tr>
+        </thead>
+        <tbody>
+            {% for msg in trans_msgs %}
+            <tr>
+            <td>{{ msg[0] }}</td>
+            <td>{{ msg[1] }}</td>
+            <td>{{ msg[2] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+</table>
+
+

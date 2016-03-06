@@ -14,31 +14,18 @@
             <input type="submit" value="Send message" id="send">
             <input type="button" value="Preview message" id="preview">
         </div>
-     <div>
-      <label>Choose a contact
-      <select name="contact_id">
-      {% for contact in contacts %}
-        <option value= {{ contact[0] }}> {{ contact[2] }} {{ contact[1] }} </option>
-      {% endfor %}
-      </select>
-    </label>
-    </div>
-    <br>
-    <div id="results"></div>
-    <div class="multiselect">
-    <div class="selectBox" onclick="showCheckboxes()">
-        <select name="contact_id">
-            <option>Select a contact</option>
-        </select>
-        <div class="overSelect"></div>
-    </div>
+        <br>
+    
+        <div class="container" id="results">
+        </div>
+        <!-- dynamic inputs -> inside my div -->
         <div id="checkboxes" name="contact_id">
         {% for contact in contacts %}
-        <label for= {{ contact[0] }}><input name="{{ contact[3] }}" type="checkbox"/>{{ contact[2] }} {{ contact[1] }}</label><br>
-      {% endfor %}
+            <label for= {{ contact[0] }}><input name="{{ contact[4] }}" id="{{ contact[4] }}" type="checkbox" class="checkboxes"/>{{ contact[2] }} {{ contact[1] }}</label><br>
+        {% endfor %}
     </div>
     </div>
-    </form>
+</form>
     <script>
     var expanded = false;
     function showCheckboxes() {
@@ -51,23 +38,29 @@
             expanded = false;
         }
     }
-    </script>
-    </form>
-    <h4><a href="/users/{{ user_id }}">User's Profile</a></h4>
- <script type="text/javascript">
+  </script>
+  <script type="text/javascript">
         var button = $("#preview");
         button.click(function() {
-            $.post("/users/{{ user_id }}/send_text/preview",
-            { 
-                text: $("#message").val()
-            },
-        function(data){
-            $("#message").val;
-            $("#results").text(data)
-    });
-    });
-        </script>
+        var contactIds = [];
+        var checkedValues = $('.checkboxes:checked').each(function() {
+            contactIds.push($(this).attr('id'));
+        });
 
- <script type="text/javascript">
-</script>
+            var postData = { 
+                    text: $("#message").val(),
+                    contactIds: contactIds
+            };
+            $.ajax({
+                url: "/users/{{ user_id }}/send_text/preview",
+                data: postData,
+                datatype: "json",
+                traditional: true,
+                type: "POST",
+                success: function(data) {
+                    $("#results").html(data)
+                }
+            });
+        });
+ </script>
 {% endblock %}
