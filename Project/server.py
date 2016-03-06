@@ -2,20 +2,22 @@
 
 from jinja2 import StrictUndefined
 import flask
-from flask import Flask, render_template, request, flash, redirect, session, jsonify
+from flask import Flask, render_template, request, flash, redirect, session, jsonify, url_for
 from flask_debugtoolbar import DebugToolbarExtension
 from model import connect_to_db, db, User, Language, Contact, Message, MessageLang, MessageContact
 from sqlalchemy import distinct, func
-import yandex, twilio_api, MessageController, UserController
+import yandex, twilio_api, MessageController, UserController, sentiment_analysis
 import json
 from gevent import monkey; monkey.patch_all()
 import datetime
+import os
 from xml.etree import ElementTree
 import gmail_contacts
 import pickle
 import gdata.contacts.client
 import gmail_contacts
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug import secure_filename
 
 from socketio import socketio_manage
 from socketio.namespace import BaseNamespace
@@ -64,10 +66,12 @@ class ChatNamespace(BaseNamespace, RoomsMixin, BroadcastMixin):
                                         user1.language.yandex_lang_code, 
                                         user2.language.yandex_lang_code)['text']
 
+        trans_msg = ''.join(trans_msg)
+
         room = self.room_name(user1.user_id, user2.user_id)
         self.emit_to_room(room, 'msg_to_room', 
                         self.socket.session['nickname'], 
-                        str(trans_msg))
+                        trans_msg)
 
 
     def recv_message(self, message):
@@ -75,7 +79,11 @@ class ChatNamespace(BaseNamespace, RoomsMixin, BroadcastMixin):
         print "PING!!!", message
 
 
+UPLOAD_FOLDER = 'static/img'
+
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+print type(app)
 
 # Required to use Flask sessions and the debug toolbar
 app.secret_key = "ABC"
@@ -128,6 +136,19 @@ def login_form():
 
     return render_template("login_form.html")
 
+@app.route('/check_login')
+def check_login():
+    """Check if user is logged in."""
+
+    if not session:
+        flash("Please log in.")
+        return redirect("/login")
+    elif "user_id" in session:
+        return redirect("users/%s" % session["user_id"])
+    else:
+        flash("Please log in.")
+        return redirect("/login")
+
 
 @app.route('/login', methods=['POST'])
 def login_process():
@@ -151,7 +172,6 @@ def login_process():
 
     flash("Logged in")
     return redirect("/users/%s/send_text" % user.user_id)
-#if there're no contacts, redirect to profile to add contacts
 
 @app.route('/logout')
 def logout():
@@ -161,19 +181,21 @@ def logout():
     flash("Logged Out.")
     return redirect("/")
 
-# USELESS
-@app.route("/users")
-def user_list():
-    """Show list of users."""
+@app.route("/users/<int:user_id>/chat")
+def user_list(user_id):
+    """Show list of possible chat rooms."""
+
+    """You just show the routes to all the other users."""
 
     users = User.query.all()
-    return render_template("user_list.html", users=users)
+
+    return render_template("user_list.html", users=users, user_id=user_id)
 
 
 @app.route("/users/<int:user_id>", methods=["GET"])
 def user_detail(user_id):
     """Show info about user."""
- 
+    
     user = User.query.get(user_id)
     
     contacts = UserController.contact_iteration(user_id)
@@ -185,27 +207,16 @@ def user_detail(user_id):
     return render_template("contact_edit.html", user=user, 
                             user_id=user_id, contacts=json.dumps(contacts))
 
-    # return render_template("user_profile.html", user=user, 
-    #                         user_id=user_id, contacts=contacts)
-
 
 @app.route("/users/<int:user_id>/edit_user", methods=["GET"])
 def show_user_edit(user_id):
     """Edit user's info."""
 
     user = User.query.get(user_id)
-    first_name = user.first_name
-    last_name = user.last_name
-    password = user.password
-    email = user.email
-    phone_number = user.phone_number
-    lang_name = user.language.lang_name
 
     languages = Language.lang_iteration()
  
-    return render_template("user_edit.html", user_id=user_id, first_name=first_name,
-                            last_name=last_name, email= email, password=password, 
-                            phone_number=phone_number, languages=languages)
+    return render_template("user_edit.html", user=user, user_img=user.get_user_img(), languages=languages)
 
 
 @app.route("/users/<int:user_id>/edit_user", methods=["POST"])
@@ -214,6 +225,7 @@ def user_edit(user_id):
 
     user = User.query.filter_by(user_id=user_id).one()
 
+    user_img = request.files['img']
     email = request.form.get("email")
     password = request.form.get("password")
     first_name = request.form.get("first_name")
@@ -221,6 +233,9 @@ def user_edit(user_id):
     lang_id = request.form.get("lang_id")
     phone_number = request.form.get("phone_number")
 
+    if user_img:
+        filename = "user%s.jpeg" % user.user_id
+        user_img.save(os.path.join(flask_app.config['UPLOAD_FOLDER'], filename))
 
     if user:
         if first_name: 
@@ -231,12 +246,12 @@ def user_edit(user_id):
             user.email = email
         if password: 
             user.password = password
+            user.set_password(password)
         if lang_id:
             user.lang_id = lang_id
         if phone_number:
             user.phone_number = phone_number
     
-    user.set_password(password)
     db.session.commit()
 
     return redirect("/users/%s" % user_id)
@@ -362,6 +377,7 @@ def submit_text_form(user_id):
                                                                     lang_code, message.message_id,
                                                                     True)
 
+
     MessageController.send_trans_texts(contacts, translate_langs_dict,
                                       message.message_id)
 
@@ -378,6 +394,7 @@ def message_list(user_id):
 
     if len(user_messages) == 0:
         flash("The user has no messages")
+        return redirect("/users/%s/send_text" % user_id)
         
 
     for message in user_messages:
@@ -385,32 +402,113 @@ def message_list(user_id):
                          message.message_sent_at))
 
 
-    return render_template("message_list.html", messages=messages)
+    return render_template("message_list.html", messages=messages, user_id=user_id)
 
+@app.route('/users/<int:user_id>/messages/message-types.json')
+def messages_types_data(user_id):
+    """Return data about messages emotions."""
+
+    messages = sentiment_analysis.get_messages(user_id) 
+
+    sentiment_list = sentiment_analysis.analyze_messages(messages)
+
+    arranged_list = sentiment_analysis.categorize_messages(sentiment_list)
+
+    data_list_of_dicts = {
+        'arranged_list': [
+            {
+                "value": arranged_list[0],
+                "color": "#F7464A",
+                "highlight": "#FF5A5E",
+                "label": "Positive messages"
+            },
+            {
+                "value": arranged_list[1],
+                "color": "#46BFBD",
+                "highlight": "#5AD3D1",
+                "label": "Negative messages"
+            },
+            {
+                "value": arranged_list[2],
+                "color": "#FDB45C",
+                "highlight": "#FFC870",
+                "label": "Neutral messages"
+            }
+        ]
+    }
+    return jsonify(data_list_of_dicts)
+
+@app.route('/users/<int:user_id>/messages/contact-messages.json')
+def contact_messages_data(user_id):
+    """Return contact's messages data."""
+
+    contact_msgs = sentiment_analysis.get_contacts_msgs(user_id)
+    sentiment_list = sentiment_analysis.get_contacts(contact_msgs)
+    arranged_list = sentiment_analysis.break_list(sentiment_list)
+    print arranged_list
+
+    data_dict = {
+        "labels": arranged_list[0],
+        "datasets": [
+            {
+                "label": "Positive messages",
+                "fillColor": "rgba(220,220,220,0.5)",
+                "strokeColor": "rgba(220,220,220,0.8)",
+                "highlightFill": "rgba(220,220,220,0.75)",
+                "highlightStroke": "rgba(220,220,220,1)",
+                "data": arranged_list[1]
+            },
+            {
+                "label": "Negative messages",
+                "fillColor": "rgba(151,187,205,0.5)",
+                "strokeColor": "rgba(151,187,205,0.8)",
+                "highlightFill": "rgba(151,187,205,0.75)",
+                "highlightStroke": "rgba(151,187,205,1)",
+                "data": arranged_list[2]
+            },
+            {
+                "label": "Neutral messages",
+                "fillColor": "rgba(151,187,205,0.5)",
+                "strokeColor": "rgba(151,187,205,0.8)",
+                "highlightFill": "rgba(151,187,205,0.75)",
+                "highlightStroke": "rgba(151,187,205,1)",
+                "data": arranged_list[3]
+            }
+        ]
+    };
+    return jsonify(data_dict)
 
 @app.route("/users/<int:user_id>/send_text/preview", methods=["POST"])
 def preview_message(user_id):
     """Preview translated message"""
 
     user_message = request.form.get("text")
+    contact_id_list = MessageController.get_numeric_list(request.form.getlist("contactIds"))
+
+    contacts = MessageController.get_contact_objects(contact_id_list)
 
     if user_message:
         user_id = session['user_id']
         user = User.query.filter_by(user_id=user_id).all()[0]
-        lang_code = user.language.yandex_lang_code
+        lang_code = user.language.yandex_lang_code 
 
-        contacts = user.contacts
-
-        unique_lang_dict = MessageController.get_unique_langs(user_id)
-
+        unique_lang_dict = MessageController.get_unique_langs(contacts)
+        
         translate_langs_dict = MessageController.translate_unique_langs(unique_lang_dict,
                                                                         user_message, 
                                                                         lang_code, 
                                                                         False,
                                                                         False)
+    
+    trans_msgs = []
+    for contact in contacts:
+        contact_lang = contact.language.lang_name
+        contact_lang_code = contact.language.yandex_lang_code
+        contact_name = contact.contact_first_name + " " + contact.contact_last_name
+        trans_msg = translate_langs_dict[contact_lang_code]
+        trans_msgs.append((trans_msg, contact_name, contact_lang))
 
-    return json.dumps(translate_langs_dict.values())
-
+    return render_template('preview_table.html', trans_msgs=trans_msgs)
 
 @app.route("/", methods=["POST", "GET"])
 def send_text():
@@ -447,7 +545,6 @@ def send_text():
 
 #TODO send text & preview buttons which will return AJAX response with diff routes
 
-
 @app.route("/users/<int:user_id>/contacts", methods=["POST", "GET"])
 def redirect_gmail(user_id):
     """Redirect the user to gmail access page"""
@@ -474,6 +571,13 @@ def redirect_app():
 
         return redirect("/users/%s" % user.user_id)
 
+@app.route("/user_images", methods=["POST", "GET"])
+def show_users_imgs():
+    "Show user's images"
+
+    user_img = pickle.load(open('token' + str(user_id) + '.p', 'rb'))
+
+
 @app.route('/users/<int:user1>/chat/<int:user2>')
 def chat(user1, user2):
     """Renders chat for each pair of users"""
@@ -495,12 +599,13 @@ if __name__ == "__main__":
 
     DebugToolbarExtension(app)
 
-    connect_to_db(app)
+    connect_to_db(app, 'postgres:///myapp')
 
     print 'Listening on http://localhost:5000'
     app.debug = True
     import os
     from werkzeug.wsgi import SharedDataMiddleware
+    flask_app = app
     app = SharedDataMiddleware(app, {
         '/': os.path.join(os.path.dirname(__file__), 'static')
         })

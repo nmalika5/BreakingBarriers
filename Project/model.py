@@ -2,6 +2,8 @@
 
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import asc
+import time
 
 # This is the connection to the SQLite database; we're getting this through
 # the Flask-SQLAlchemy helper library. On this, we can find the `session`
@@ -45,7 +47,12 @@ class User(db.Model):
 
         return check_password_hash(self.password, password)
 
+    def get_user_img(self):
+        """Get user's image"""
 
+        caching = time.time()
+
+        return "/static/img/user%s.jpeg?%s" % (self.user_id, caching)
 
 
 class Language(db.Model):
@@ -55,7 +62,7 @@ class Language(db.Model):
 
     lang_id = db.Column(db.Integer, autoincrement=True, primary_key=True)
     lang_name = db.Column(db.String(30), nullable=False)
-    yandex_lang_code = db.Column(db.String(2), nullable=False) 
+    yandex_lang_code = db.Column(db.String(2), nullable=False)
 
     
     def __repr__(self):
@@ -70,7 +77,7 @@ class Language(db.Model):
     def lang_iteration():
         """Iterate through a list of languages"""
     
-        language_list = Language.query.all()
+        language_list = Language.query.order_by(asc(Language.lang_name)).all()
 
         languages = []
 
@@ -116,7 +123,7 @@ class Message(db.Model):
     message_text = db.Column(db.String(1000), nullable=True)
     message_sent_at = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
-    original_lang_id = db.Column(db.Integer)
+    original_lang_id = db.Column(db.Integer, db.ForeignKey('languages.lang_id'))
     
     languages = db.relationship("Language", secondary="messages_langs", backref="messages")
     contacts = db.relationship("Contact", secondary="messages_contacts", backref="messages")
@@ -126,18 +133,51 @@ class Message(db.Model):
     user = db.relationship("User",
                            backref=db.backref("messages", order_by=message_id))
 
+    # Define relationship to language
+    language = db.relationship("Language", 
+                                backref=db.backref("languages", order_by=message_id))
+
 
     def __repr__(self):
         """Provide helpful representation when printed."""
 
-        return "<Message message_id=%s user_id=%s message_status=%s, message=%s, \
+        return "<Message message_id=%s user_id=%s message=%s, \
                 message sent=%s>" % (
                                                                 self.message_id, 
                                                                 self.user_id, 
-                                                                self.message_status,
                                                                 self.message_text,
                                                                 self.message_sent_at,
                                                                 )
+    # write a method that will return an english msg, returns an empty string if there's no english message
+
+    def get_eng_msg(self):
+        """ Message object -> string
+        Returns an original msg but in english"""
+        import yandex
+
+        if self.original_lang_id == 1:
+    
+            return self.message_text
+
+        trans_eng_msg = MessageLang.query.filter((MessageLang.lang_id==1) & (MessageLang.message_id==self.message_id)).first()
+        
+        if trans_eng_msg:
+            
+            return trans_eng_msg.translated_message
+
+        else:
+
+            translate_to_eng = yandex.translate_message(self.message_text, self.language.yandex_lang_code, 'en')
+            eng_msg = ''.join(translate_to_eng['text'])
+
+            fake_eng_msg = MessageLang(translated_message=eng_msg, message_status=270, lang_id=1, message_id=self.message_id)
+
+            db.session.add(fake_eng_msg)
+            db.session.commit()
+            
+            return eng_msg
+
+        return ""
 
 class MessageLang(db.Model):
     """Association table between messages and languages tables."""
@@ -185,11 +225,11 @@ class MessageContact(db.Model):
 ##############################################################################
 # Helper functions
 
-def connect_to_db(app):
+def connect_to_db(app, database):
     """Connect the database to our Flask app."""
 
     # Configure to use our SQLite database
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres:///myapp'
+    app.config['SQLALCHEMY_DATABASE_URI'] = database
     db.app = app
     db.init_app(app)
 
@@ -199,5 +239,5 @@ if __name__ == "__main__":
     # you in a state of being able to work with the database directly.
 
     from server import app
-    connect_to_db(app)
+    connect_to_db(app, 'postgres:///myapp')
     print "Connected to DB."
