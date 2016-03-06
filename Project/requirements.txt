@@ -18,3 +18,5 @@ gevent-socketio
 gevent
 gevent-websocket
 greenlet
+textblob
+coverage
