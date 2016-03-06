@@ -6,6 +6,39 @@
     {% for msg in messages %}
     <li> {{ msg[0] }} {{ msg[1] }} {{ msg[2] }} </li>
     {% endfor %}
-
   </ul>
+   <div class="messages-chart">
+    <canvas id="donutChart"></canvas>
+    <div id="donutLegend" class="chart-legend"></div>
+  </div>
+
+  <div class="messages-chart">
+    <canvas id="barChart"></canvas>
+    <div id="barLegend" class="chart-legend"></div>
+  </div>
+
+<script>
+    var options = {
+    responsive: true
+    };
+
+    // Make Donut Chart of percent of different emotions of messages
+    var ctx_pie = $("#donutChart").get(0).getContext("2d");
+
+    $.get("/users/{{ user_id }}/messages/message-types.json", function (data) {
+      var myPieChart = new Chart(ctx_pie).Pie(data.arranged_list, options);
+      $('#donutLegend').html(myPieChart.generateLegend());
+    });
+
+    // Make Line Chart of Contacts' Messages 
+    var ctx_bar = $("#barChart").get(0).getContext("2d");
+
+    $.get("/users/{{ user_id }}/messages/contact-messages.json", function (data) {
+        console.log(data);
+        var myBarChart = new Chart(ctx_bar).Bar(data, options);
+      $("#barLegend").html(myBarChart.generateLegend());
+    });
+
+</script>
+
 {% endblock %}
