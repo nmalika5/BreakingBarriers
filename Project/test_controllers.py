@@ -5,7 +5,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 import server
 import subprocess
-import MessageController, UserController, sentiment_analysis, yandex
+import MessageController, UserController, sentiment_analysis, yandex, server
 from textblob import TextBlob
 
 class MessageControllerTests(TestCase):
@@ -111,8 +111,8 @@ class UserControllertests(TestCase):
 
         user_contacts = UserController.contact_iteration(3)
 
-        self.assertEqual(user_contacts, [(u'4153417706', u'Russian', u'Contact3', u'Test', 3),
-                                        (u'4153417706', u'Russian', u'Contact4', u'Test', 4)])
+        self.assertEqual(user_contacts, [(u'4153417706', 5, u'Contact3', u'Test', 3),
+                                        (u'4153417706', 5, u'Contact4', u'Test', 4)])
 
 
 class SentimentAnalysistests(TestCase):
@@ -222,6 +222,37 @@ class YandexTests(TestCase):
         existing_message = yandex.translate_message('salut', 'fr', 'en')
         self.assertEqual(existing_message["text"], u"hi")
         self.assertEqual(existing_message["code"], 255)
+
+class FlaskTests(TestCase):
+
+    def setUp(self):
+        self.client = app.test_client()
+        app.config['TESTING'] = True
+
+    def test_home(self):
+        route = self.client.get('/')
+        self.assertEqual(route.status_code, 200)
+        self.assertIn('text/html', route.headers['Content-Type'])
+
+    def test_register(self):
+        route = self.client.get('/register')
+        self.assertEqual(route.status_code, 200)
+
+    def test_register(self):
+        route = self.client.get('/login')
+        self.assertEqual(route.status_code, 200)
+
+    def test_chat(self):
+        route = self.client.get('/users/1/chat')
+        #if there's no user session, returns redirect
+        self.assertEqual(route.status_code, 302)
+
+    def test_user_profile(self):
+        route = self.client.get('/users/1')
+        #if there's no user session, returns redirect
+        self.assertEqual(route.status_code, 302)
+
+
 
 if __name__ == "__main__":
     import unittest

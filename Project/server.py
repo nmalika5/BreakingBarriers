@@ -1,11 +1,9 @@
-"""Text Translator."""
-
 from jinja2 import StrictUndefined
 import flask
 from flask import Flask, render_template, request, flash, redirect, session, jsonify, url_for
 from flask_debugtoolbar import DebugToolbarExtension
 from model import connect_to_db, db, User, Language, Contact, Message, MessageLang, MessageContact
-from sqlalchemy import distinct, func
+from sqlalchemy import distinct, func, desc
 import yandex, twilio_api, MessageController, UserController, sentiment_analysis
 import json
 from gevent import monkey; monkey.patch_all()
@@ -127,14 +125,13 @@ def register_process():
     db.session.add(new_user)
     db.session.commit()
 
-    flash("User %s added." % email)
-    return redirect("/login") 
+    return redirect("/") 
 
 @app.route('/login', methods=['GET'])
 def login_form():
     """Show login form."""
 
-    return render_template("login_form.html")
+    return render_template("home.html")
 
 @app.route('/check_login')
 def check_login():
@@ -142,12 +139,12 @@ def check_login():
 
     if not session:
         flash("Please log in.")
-        return redirect("/login")
+        return redirect("/")
     elif "user_id" in session:
         return redirect("users/%s" % session["user_id"])
     else:
         flash("Please log in.")
-        return redirect("/login")
+        return redirect("/")
 
 
 @app.route('/login', methods=['POST'])
@@ -166,12 +163,12 @@ def login_process():
 
     if not user.check_password(password):
         flash("Incorrect password")
-        return redirect("/login")
+        return redirect("/")
 
     session["user_id"] = user.user_id
 
     flash("Logged in")
-    return redirect("/users/%s/send_text" % user.user_id)
+    return redirect("/users/%s" % user.user_id)
 
 @app.route('/logout')
 def logout():
@@ -185,32 +182,51 @@ def logout():
 def user_list(user_id):
     """Show list of possible chat rooms."""
 
-    """You just show the routes to all the other users."""
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
 
     users = User.query.all()
 
-    return render_template("user_list.html", users=users, user_id=user_id)
+    return render_template("chat_rooms.html", users=users, user_id=user_id)
 
 
 @app.route("/users/<int:user_id>", methods=["GET"])
 def user_detail(user_id):
     """Show info about user."""
     
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
+
     user = User.query.get(user_id)
     
     contacts = UserController.contact_iteration(user_id)
+
+    languages = Language.lang_iteration()
+
+    existing_message = ""
 
     if len(contacts) == 0:
         flash("The user has no contacts, you need to add one")
         return redirect("/users/%s/add_contact" % user_id)
 
     return render_template("contact_edit.html", user=user, 
-                            user_id=user_id, contacts=json.dumps(contacts))
+                            user_id=user_id, contacts=json.dumps(contacts),
+                            contact_objects = contacts, languages=json.dumps(languages), 
+                            existing_message=existing_message, user_img=user.get_user_img())
 
 
 @app.route("/users/<int:user_id>/edit_user", methods=["GET"])
 def show_user_edit(user_id):
     """Edit user's info."""
+
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
 
     user = User.query.get(user_id)
 
@@ -222,6 +238,11 @@ def show_user_edit(user_id):
 @app.route("/users/<int:user_id>/edit_user", methods=["POST"])
 def user_edit(user_id):
     """Edit user's info."""
+
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
 
     user = User.query.filter_by(user_id=user_id).one()
 
@@ -261,6 +282,11 @@ def user_edit(user_id):
 def show_contact_form(user_id):
     """Show form for contact signup."""
 
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
+
     user = User.query.get(user_id)
 
     languages = Language.lang_iteration()
@@ -272,6 +298,11 @@ def show_contact_form(user_id):
 def add_contact(user_id):
     """Add a contact."""
 
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
+
     first_name = request.form["first_name"]
     last_name = request.form["last_name"]
     language = request.form["lang_id"]
@@ -280,7 +311,6 @@ def add_contact(user_id):
     contact = Contact(contact_first_name=first_name, contact_last_name=last_name,
                     contact_phone=phone, user_id=user_id, lang_id=language)
     
-    flash("Contact added.")
     db.session.add(contact)
 
     db.session.commit()
@@ -291,6 +321,11 @@ def add_contact(user_id):
 @app.route("/users/<int:user_id>/contacts/<int:contact_id>", methods=["DELETE"])
 def delete_contact(user_id, contact_id):
     """Delete a contact."""
+
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
 
     contact_id = Contact.query.filter_by(contact_id=contact_id).one()
     
@@ -305,6 +340,11 @@ def delete_contact(user_id, contact_id):
 def edit_contact(user_id, contact_id):
     """Edit a contact."""
 
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
+
     contact = Contact.query.filter_by(contact_id=contact_id).one()
     request.data = json.loads(request.data)
     contact_fname = request.data["fname"]
@@ -318,7 +358,7 @@ def edit_contact(user_id, contact_id):
         if contact_lname:
             contact.contact_last_name = contact_lname
         if language:
-            lang = Language.query.filter_by(lang_name=language).one()
+            lang = Language.query.filter_by(lang_id=language).one()
             contact.lang_id = lang.lang_id
         if phone:
             contact.contact_phone = phone
@@ -328,26 +368,15 @@ def edit_contact(user_id, contact_id):
 
     return ('', 204) 
 
-@app.route("/users/<int:user_id>/send_text", methods=["GET"])
-def show_text_form(user_id):
-    """Show send message form"""
-
-    contacts = UserController.contact_iteration(user_id)
-
-
-    if len(contacts) == 0:
-        flash("The user has no contacts, you need to add one")
-        return redirect("/users/%s/add_contact" % user_id)
-
-
-    existing_message = ""
-    return render_template("message_form.html", existing_message=existing_message, 
-                            user_id=user_id, contacts=contacts)
-
 
 @app.route("/users/<int:user_id>/send_text/submit", methods=["POST"])
 def submit_text_form(user_id):
     """Send message"""
+
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
 
     user_message = request.form.get("text")
     contact_id_list = MessageController.get_numeric_list(request.form.keys())
@@ -388,7 +417,12 @@ def submit_text_form(user_id):
 def message_list(user_id):
     """Show info about user's messages."""
 
-    user_messages = Message.query.filter_by(user_id = user_id).all()
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
+
+    user_messages = db.session.query(Message).filter(Message.user_id == user_id).order_by(desc(Message.message_id)).limit(10).all()
 
     messages = []
 
@@ -398,7 +432,7 @@ def message_list(user_id):
         
 
     for message in user_messages:
-        messages.append((message.message_id, message.message_text, 
+        messages.append((message.language.lang_name, message.message_text, 
                          message.message_sent_at))
 
 
@@ -407,6 +441,11 @@ def message_list(user_id):
 @app.route('/users/<int:user_id>/messages/message-types.json')
 def messages_types_data(user_id):
     """Return data about messages emotions."""
+
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
 
     messages = sentiment_analysis.get_messages(user_id) 
 
@@ -442,6 +481,11 @@ def messages_types_data(user_id):
 def contact_messages_data(user_id):
     """Return contact's messages data."""
 
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
+
     contact_msgs = sentiment_analysis.get_contacts_msgs(user_id)
     sentiment_list = sentiment_analysis.get_contacts(contact_msgs)
     arranged_list = sentiment_analysis.break_list(sentiment_list)
@@ -452,26 +496,26 @@ def contact_messages_data(user_id):
         "datasets": [
             {
                 "label": "Positive messages",
-                "fillColor": "rgba(220,220,220,0.5)",
+                "fillColor": "#F7464A",
                 "strokeColor": "rgba(220,220,220,0.8)",
-                "highlightFill": "rgba(220,220,220,0.75)",
+                "highlightFill": "rgba(151,187,205,0.75)",
                 "highlightStroke": "rgba(220,220,220,1)",
                 "data": arranged_list[1]
             },
             {
                 "label": "Negative messages",
-                "fillColor": "rgba(151,187,205,0.5)",
+                "fillColor": "#46BFBD",
                 "strokeColor": "rgba(151,187,205,0.8)",
                 "highlightFill": "rgba(151,187,205,0.75)",
-                "highlightStroke": "rgba(151,187,205,1)",
+                "highlightStroke": "#46BFBD",
                 "data": arranged_list[2]
             },
             {
                 "label": "Neutral messages",
-                "fillColor": "rgba(151,187,205,0.5)",
+                "fillColor": "#FDB45C",
                 "strokeColor": "rgba(151,187,205,0.8)",
                 "highlightFill": "rgba(151,187,205,0.75)",
-                "highlightStroke": "rgba(151,187,205,1)",
+                "highlightStroke": "#C0C0C0",
                 "data": arranged_list[3]
             }
         ]
@@ -481,6 +525,11 @@ def contact_messages_data(user_id):
 @app.route("/users/<int:user_id>/send_text/preview", methods=["POST"])
 def preview_message(user_id):
     """Preview translated message"""
+
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
 
     user_message = request.form.get("text")
     contact_id_list = MessageController.get_numeric_list(request.form.getlist("contactIds"))
@@ -543,11 +592,15 @@ def send_text():
     else:
         render_template('home.html')
 
-#TODO send text & preview buttons which will return AJAX response with diff routes
 
 @app.route("/users/<int:user_id>/contacts", methods=["POST", "GET"])
 def redirect_gmail(user_id):
     """Redirect the user to gmail access page"""
+
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user_id:
+        return redirect("/users/%s" % session['user_id'])
 
     authorized_url = gmail_contacts.authorize_url(flask.session, user_id)
 
@@ -577,10 +630,14 @@ def show_users_imgs():
 
     user_img = pickle.load(open('token' + str(user_id) + '.p', 'rb'))
 
-
 @app.route('/users/<int:user1>/chat/<int:user2>')
 def chat(user1, user2):
     """Renders chat for each pair of users"""
+
+    if 'user_id' not in session:
+        return redirect("/")
+    elif session['user_id'] != user1:
+        return redirect("/users/%s" % session['user_id'])
 
     return render_template('chat.html', user1=user1, user2=user2)
 

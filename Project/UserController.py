@@ -11,7 +11,7 @@ def contact_iteration(user_id):
     contacts = []
 
     for contact in user_contact_list:
-        contacts.append((contact.contact_phone, contact.language.lang_name, 
+        contacts.append((contact.contact_phone, contact.language.lang_id, 
                          contact.contact_first_name, contact.contact_last_name, 
                          contact.contact_id))
 
