@@ -1,55 +1,59 @@
 {% extends 'base.html' %}
 {% block content %}
-
-<h1>New Contact</h1>
+<link rel="stylesheet"
+      href="/static/css/contact.css">
 
 <div ng-app="validationApp" ng-controller="contactController">
-<div class="container">
-<div class="col-sm-8 col-sm-offset-2">
-<form name="contactForm" action="/users/{{ user_id }}/add_contact" method="POST" ng-submit="submitForm(contactForm.$valid)" novalidate>
-
-     <div class="form-group" ng-class="{ 'has-error' : contactForm.fname.$invalid && !contactForm.fname.$pristine }">
-        <label>
-            First Name
+    <div class="container" style="padding-top: 60px;">
+    <h1 class="page-header">Add a New Contact</h1>
+    <div class="row"> 
+    <form name="contactForm" action="/users/{{ user_id }}/add_contact" method="POST" ng-submit="submitForm(contactForm.$valid)" novalidate>
+        <div class="col-md-8 col-sm-6 col-xs-12 contact-info">
+        <h3>Contact Information</h3>
+        <div class="form-group" ng-class="{ 'has-error' : contactForm.fname.$invalid && !contactForm.fname.$pristine }">
+          <label class="col-lg-3 control-label">First Name:</label>
+          <div class="col-lg-8">
             <input type="text" name="first_name" class="form-control" ng-model="fname" required>
             <p ng-show="contactForm.fname.$invalid && !contactForm.fname.$pristine" class="help-block">Contact's first name is required.</p>
-        </label>
-    </div>
-    <div class="form-group" ng-class="{ 'has-error' : contactForm.lname.$invalid && !contactForm.lname.$pristine }">
-        <label>
-            Last Name
+        </div>
+        </div>
+        <div class="form-group" ng-class="{ 'has-error' : contactForm.lname.$invalid && !contactForm.lname.$pristine }">
+          <label class="col-lg-3 control-label">Last name:</label>
+          <div class="col-lg-8">
             <input type="text" name="last_name" class="form-control" ng-model="lname" required>
             <p ng-show="contactForm.lname.$invalid && !contactForm.lname.$pristine" class="help-block">Contact's last name is required.</p>
-        </label>
-    </div> 
-
+        </div>
+        </div> 
+        <div class="form-group" ng-class="{ 'has-error' : contactForm.phone.$invalid && !contactForm.phone.$pristine }">
+        <label class="col-lg-3 control-label">Phone Number:</label>
+            <div class="col-lg-8">
+            <input type="text" name="phone" class="form-control" ng-model="phone" ng-minlength="10" ng-maxlength="10" required>
+            <p ng-show="contactForm.phone.$error.minlength" class="help-block">Phone is too short.</p>
+            <p ng-show="contactForm.phone.$error.maxlength" class="help-block">Phone is too long.</p>
+    </div>
     <div class="form-group" ng-class="{ 'has-error' : contactForm.lang.$invalid && !contactForm.lang.$pristine }">
-        <label>Language
-        <select name="lang_id" class="form-control" ng-model="lang" required>
+        <label class="col-lg-3 control-label">Language:</label>
+        <div class="col-lg-8">
+        <div class="ui-select">
+        <select class="form-control styled-select blue semi-square langselect" name="lang_id" class="form-control" ng-model="lang" required>
         {% for lang in languages %}
+          <option value="" disabled selected hidden>Select Language</option>
           <option value= {{ lang[0] }} >{{ lang[1] }}</option>
         {% endfor %}
         <p ng-show="contactForm.lang.$invalid && !contactForm.lang.$pristine" class="help-block">Contact's language is required.</p>
         </select>
-    </label>
     </div>
-
-    <div class="form-group" ng-class="{ 'has-error' : contactForm.phone.$invalid && !contactForm.phone.$pristine }">
-        <label>
-            Phone
-            <input type="text" name="phone" class="form-control" ng-model="phone" ng-minlength="10" ng-maxlength="10" required>
-            <p ng-show="contactForm.phone.$error.minlength" class="help-block">Phone is too short.</p>
-            <p ng-show="contactForm.phone.$error.maxlength" class="help-block">Phone is too long.</p>
-        </label>
     </div>
-
-    <div>
+    </div>
+    <br>
+    <br><div>
         <input type="submit" value="Submit" class="btn btn-primary" ng-disabled="contactForm.$invalid">
     </div>
 </div>
-</div>
-</div>
 </form>
+</div>
+</div>
+</div>
 
 <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
 <script type="text/javascript">
@@ -58,7 +62,7 @@
     validationApp.controller('contactController', function($scope) {
         $scope.submitForm = function(isValid) {
             if (isValid) {
-                alert('The contact has been added');
+                swal('Success!', "The contact has been added", "success");
             }
         };
     });

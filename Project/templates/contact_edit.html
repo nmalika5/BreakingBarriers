@@ -1,44 +1,139 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<style>
-  ul {
-    list-style-type: none;
-    margin: 5px;
-  }
-</style>
-<div class="well spaced" style="width:97%">
-  <h2>{{ user.first_name }} {{ user.last_name }}</h2>
+<link rel="stylesheet"
+      href="/static/css/user_profile.css">
 
-  <b><p style="color:red">Phone: {{ user.phone_number }}</p>
-  <p style="color:red">Preferred Language: {{ user.language.lang_name }}</p></b>
-  <h4> A list of user's contacts </h4>
-  
-  <div ng-app="contactApp">
-  <ul ng-controller="contactsController">
-    <li ng-repeat="contact in contacts">
-    <label>Phone Number
-      <input type="text" id="phoneNumber" ng-model="contact[0]">
-    </label>
-    <label>Language
-    <input type="text" id="langName" ng-model="contact[1]"]>
-    </label>
-    <label>First Name
-      <input type="text" id="firstName" ng-model="contact[2]"]>
-    </label>
-    <label>Last Name
-      <input type="text" id="firstName" ng-model="contact[3]"]>
-    </label>
+<div class="container">
+    <div class="row">
+       <section class="col-xs-12 col-sm-12 col-md-3 col-lg-3 left">
+            <div class="well well-sm">
+                <div class="row">
+                    <div class="col-sm-6 col-md-6">
+                         <img src={{user_img}}  alt="avatar" style="float:left" width="380" height="500" class="img-rounded img-responsive" />
+                    </div>
+                    <div class="col-sm-6 col-md-8">
+                        <h4>
+                          {{ user.first_name }} {{ user.last_name }}</h4>
+                        </i></cite></small>
+                        <p>
+                            <i class="glyphicon glyphicon-envelope"></i>{{ user.email}}
+                            <br />
+                            <i class="glyphicon glyphicon-globe"></i>{{ user.language.lang_name }}
+                            <br />
+                            <i class="glyphicon glyphicon-phone"></i>{{user.phone_number}}</p>
+                        <!-- Split button -->
+                        <div class="btn-group">
+                            <button type="button" value="Import contacts" id="import" class="btn btn-primary">Import Google Contacts</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </section>
+            <section class="col-xs-12 col-sm-12 col-md-9 col-lg-9 right">
+      <div class="span4 well" style="padding-bottom:0">
+        <h4>Send Message</h4>
+        <form accept-charset="UTF-8" action="/users/{{ user_id }}/send_text/submit" method="POST">
+        <div>
+          <label>
+          <textarea class="span4" type="text" name="text" id = "message" placeholder="Type in your message" rows="4" required></textarea>
+        </label>
+        </div>
+        {% if existing_message %}
+        Your message: {{ existing_message }}
+       {% endif %}
+        <div>
+            <input type="submit" value="Send message" id="send" class="btn btn-submit">
+            <input type="button" value="Preview message" id="preview" class="btn btn-preview">
+        </div>
+        <br>    
+        <div class="col-xs-12 col-sm-12" id="results">
+        </div>
+        <!-- dynamic inputs -> inside my div -->
+        <div id="checkboxes" name="contact_id">
+        {% for contact in contact_objects %}
+            <label for= {{ contact[0] }}><input name="{{ contact[4] }}" id="{{ contact[4] }}" type="checkbox" class="checkboxes"/> {{ contact[2] }} {{ contact[3] }}</label><br>
+        {% endfor %}
+      </div>
+    </form>
+  </div>
+</section>
+  </div>
+  </div>
+  </div>
+  </div>
+    <script>
+    var expanded = false;
+    function showCheckboxes() {
+        var checkboxes = $("#checkboxes");
+        if (!expanded) {
+            checkboxes.style.display = "block";
+            expanded = true;
+        } else {
+            checkboxes.style.display = "none";
+            expanded = false;
+        }
+    }
+  </script>
+  <script type="text/javascript">
+        var button = $("#preview");
+        button.click(function() {
+        var contactIds = [];
+        var checkedValues = $('.checkboxes:checked').each(function() {
+            contactIds.push($(this).attr('id'));
+        });
 
-    <a href="#" ng-click="delete(contact)">Delete</a>
-    <a href="#" ng-click="edit(contact)">Edit</a>
-    </li>
-    </ul>
+            var postData = { 
+                    text: $("#message").val(),
+                    contactIds: contactIds
+            };
+            $.ajax({
+                url: "/users/{{ user_id }}/send_text/preview",
+                data: postData,
+                datatype: "json",
+                traditional: true,
+                type: "POST",
+                success: function(data) {
+                    $("#results").html(data)
+                }
+            });
+        });
+ </script>
   </div>
 
-    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
-    <script type="text/javascript">
-    
+<h4 align="center">Edit Your Contacts</h4>
+<div class="container">
+  <div class="row">
+    <section class=class="col-xs-12 col-md-6 col-lg-6 col-md-offset-3 col-lg-offset-3">
+      <div ng-app="contactApp">
+        <table class="table table-striped" ng-controller="contactsController">
+          <thead>
+            <tr>
+              <th>Contact Phone</th>
+              <th>Contact First Name</th>
+              <th>Contact Last Name</th>
+              <th>Contact's Language</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-repeat="contact in contacts">
+              <td><input type="text" id="phoneNumber" ng-model="contact[0]"/></td>
+              <td><input class="tdbackground" type="text" id="firstName" ng-model="contact[2]"]></td>
+              <td><input class="tdbackground" type="text" id="firstName" ng-model="contact[3]"]></td>
+              <td><select name="langSelect{[contact[4]]}" id="langSelect{[contact[4]]}" ng-model="contact[1]" ng-options="lang[0] as lang[1] for lang in languages"></td>
+              <td><a href="#" class="btn btn-primary" ng-click="edit(contact)">Edit</a></td>
+              <td><a href="#" class="btn btn-danger" ng-click="delete(contact)">Delete</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+<script type="text/javascript">
+
     var app = angular.module("contactApp", []);
     app.config(['$interpolateProvider', function($interpolateProvider) {
     $interpolateProvider.startSymbol('{[');
@@ -48,13 +143,12 @@
     app.controller("contactsController", function($scope, $http) {
 
       $scope.contacts = {{ contacts|safe }};
-      console.log($scope.contacts);
+      $scope.languages = {{ languages|safe }}
 
       $scope.delete = function(contact) {
         var index = $scope.contacts.indexOf(contact);
-        alert("Are you sure you want to delete this contact: " + index);
+        sweetAlert("Done", "Contact has been deleted",  "success");
         $scope.contacts.splice(index, 1);
-        console.log(contact);
         var deleteEndpoint ="/users/{{ user_id }}/contacts/" + contact[4];
         $http.delete(deleteEndpoint).success(function(result) { console.log(result);
         $scope.resultDelete = result;
@@ -65,7 +159,6 @@
 
       $scope.edit = function(contact) {
         $scope.current = contact;
-        console.log(contact);
         var data = { "phone": contact[0], 
                      "language": contact[1],
                      "fname": contact[2],
@@ -74,20 +167,12 @@
         var editEndpoint ="/users/{{ user_id }}/contacts/" + contact[4];
         $http.put(editEndpoint, data).success(
           function(data, status, headers) {
-            alert("Contact updated");
+            swal("Success!", "The contact has been updated!", "success");
         });
       };
     });
   </script>
 </script>
-
-    <!-- <h4><a href="/users/{{ user_id }}/add_contact">Add Contacts</a></h4>
-    <h4><a href="/users/{{ user_id }}/edit_user">Edit User</a></h4>
-    <h4><a href="/users/{{ user_id }}/send_text">Send Message</a></h4>
-
-    <h4><a href="/users/{{ user_id }}/chat">Chat</a></h4> -->
-
-  <input type="button" value="import contacts" id="import">
     <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
     <script>
     $(document).ready(function(){

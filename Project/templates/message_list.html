@@ -1,41 +1,79 @@
 {% extends 'base.html' %}
 {% block content %}
+<link rel="stylesheet"
+      href="/static/css/messages.css">
+  
+  <h4> Your Messages </h4>
+  <div class="col-xs-12 col-md-12 col-lg-6 col-md-offset-3 col-lg-offset-3">
+    <table class="table table-striped table-hover table-condensed table-responsive">
+        <thead>
+        <tr>
+            <th>Your Language</th>
+            <th>Message</th>
+            <th>Datetime</th>
+        </tr>
+        </thead>
+        <tbody>
+            {% for msg in messages %}
+            <tr>
+            <td>{{ msg[0] }}</td>
+            <td>{{ msg[1] }}</td>
+            <td>{{ msg[2] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+</table>
+</div>
 
-  <h4> The messages of that user </h4>
-  <ul> 
-    {% for msg in messages %}
-    <li> {{ msg[0] }} {{ msg[1] }} {{ msg[2] }} </li>
-    {% endfor %}
-  </ul>
-   <div class="messages-chart">
+   <div class="messages-piechart">
     <canvas id="donutChart"></canvas>
     <div id="donutLegend" class="chart-legend"></div>
   </div>
 
-  <div class="messages-chart">
+  <div class="messages-barchart">
     <canvas id="barChart"></canvas>
     <div id="barLegend" class="chart-legend"></div>
   </div>
 
 <script>
-    var options = {
-    responsive: true
+    var pieOptions = {
+    responsive: true,
+    legendTemplate : '<ul class="legend">'
+                +'<% for (var i=0; i<datasets.length; i++) { %>'
+                  +'<li>'
+                  +'<span style=\"color:<%=datasets[i].color%>\">'
+                  +'<% if (datasets[i].label) { %><%= datasets[i].label %><% } %>'
+                  +'</span>'
+                +'</li>'
+              +'<% } %>'
+            +'</ul>'
     };
 
-    // Make Donut Chart of percent of different emotions of messages
-    var ctx_pie = $("#donutChart").get(0).getContext("2d");
+    var barOptions = {
+    responsive: true,
+    legendTemplate : '<ul class="legend">'
+                +'<% for (var i=0; i<datasets.length; i++) { %>'
+                  +'<li>'
+                  +'<span style=\"color:<%=datasets[i].fillColor%>\">'
+                  +'<% if (datasets[i].label) { %><%= datasets[i].label %><% } %>'
+                  +'</span>'
+                +'</li>'
+              +'<% } %>'
+            +'</ul>'
+    };
 
+    var ctx_pie = $("#donutChart").get(0).getContext("2d");
     $.get("/users/{{ user_id }}/messages/message-types.json", function (data) {
-      var myPieChart = new Chart(ctx_pie).Pie(data.arranged_list, options);
+      datasets = data.arranged_list;
+      var myPieChart = new Chart(ctx_pie).Pie(data.arranged_list, pieOptions);
       $('#donutLegend').html(myPieChart.generateLegend());
     });
 
-    // Make Line Chart of Contacts' Messages 
     var ctx_bar = $("#barChart").get(0).getContext("2d");
 
     $.get("/users/{{ user_id }}/messages/contact-messages.json", function (data) {
-        console.log(data);
-        var myBarChart = new Chart(ctx_bar).Bar(data, options);
+        datasets=data.datasets;
+        var myBarChart = new Chart(ctx_bar).Bar(data, barOptions);
       $("#barLegend").html(myBarChart.generateLegend());
     });
 

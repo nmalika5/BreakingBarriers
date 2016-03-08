@@ -1,73 +1,60 @@
 {% extends 'base.html' %}
 {% block content %}
-
-<h1>Sign Up</h1>
+ <link href='https://fonts.googleapis.com/css?family=Raleway:400,100,200,300,500,600,800,700,900' rel='stylesheet' type='text/css'>
+<link rel="stylesheet"
+      href="/static/css/register.css">
 
 <div ng-app="validationApp" ng-controller="userController">
-<div class="container">
-<div class="col-sm-8 col-sm-offset-2">
-<form name="userForm" ng-submit="submitForm(userForm.$valid)" action="/register" method="POST" ng-submit="submitForm(userForm.$valid)" novalidate>
-
-    <div class="form-group" ng-class="{ 'has-error' : userForm.email.$invalid && !userForm.email.$pristine }">
-        <label>
-            Email
-            <input type="email" name="email" class="form-control" ng-model="email" required>
-            <p ng-show="userForm.email.$invalid && !userForm.email.$pristine" class="help-block">Enter a valid email.</p>
-        </label>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-6 col-lg-6 left">
+            <p class="motto">Your Channel. Your Chat. Your Language.</p>
+        </div>
+        <div class="col-xs-12 col-sm-12 col-md-6 col-lg-6 right">
+        <div class="col-md-4 col-md-offset-3">
+        <h2 id="signup">Sign Up</h2>
+        <form name="userForm" ng-submit="submitForm(userForm.$valid)" action="/register" method="POST" ng-submit="submitForm(userForm.$valid)" novalidate>
+        <div class="form-group" ng-class="{ 'has-error' : userForm.email.$invalid && !userForm.email.$pristine }">
+            <input type="email" name="email" class="form-control" ng-model="email" placeholder="Your Email" required>
+                <p ng-show="userForm.email.$invalid && !userForm.email.$pristine" class="help-block">Enter a valid email.</p>
+            </div>
+        <div class="form-group" ng-class="{ 'has-error' : userForm.password.$invalid && !userForm.password.$pristine }">
+            <input type="password" name="password" class="form-control" ng-model="password" ng-minlength="5" ng-maxlength="10" placeholder="Your Password" required>
+                <p ng-show="userForm.password.$error.minlength" class="help-block">Password is too short.</p>
+                <p ng-show="userForm.password.$error.maxlength" class="help-block">Password is too long.</p>
+        </div>
+         <div class="form-group" ng-class="{ 'has-error' : userForm.fname.$invalid && !userForm.fname.$pristine }">
+            <input type="text" name="first_name" class="form-control" ng-model="fname" placeholder="Your First Name" required>
+                  <p ng-show="userForm.fname.$invalid && !userForm.fname.$pristine" class="help-block">You first name is required.</p>
+        </div> 
+        <div class="form-group" ng-class="{ 'has-error' : userForm.lname.$invalid && !userForm.lname.$pristine }">
+            <input type="text" name="last_name" class="form-control" ng-model="lname" placeholder="Your Last Name" required>
+                <p ng-show="userForm.lname.$invalid && !userForm.lname.$pristine" class="help-block">You last name is required.</p>
+        </div> 
+        <div class="form-group" ng-class="{ 'has-error' : userForm.lang.$invalid && !userForm.lang.$pristine }">
+            <select name="lang_id" class="form-control styled-select blue semi-square langselect" ng-model="lang" required>
+            {% for lang in languages %}
+            <option value="" disabled selected hidden>Select Language</option>
+              <option value= {{ lang[0] }}>{{ lang[1] }}</option>
+            {% endfor %}
+            <p ng-show="userForm.lang.$invalid && !userForm.lang.$pristine" class="help-block">Contact's language is required.</p>
+            </select>
+        </div>
+        <div class="form-group" ng-class="{ 'has-error' : userForm.phone.$invalid && !userForm.phone.$pristine }">
+            <input type="text" name="phone" class="form-control" ng-model="phone" ng-minlength="10" ng-maxlength="12" placeholder="Your Phone Number" required>
+                <p ng-show="userForm.phone.$error.minlength" class="help-block">Phone number is too short.</p>
+                <p ng-show="userForm.phone.$error.maxlength" class="help-block">Phone number is too long.</p>
+        </div>
+        <div>
+            <input type="submit" value="Submit" class="btn btn-primary" ng-disabled="userForm.$invalid">
+        </div>
+                </form>
+            </div>
+        </div>
     </div>
-
-    <div class="form-group" ng-class="{ 'has-error' : userForm.password.$invalid && !userForm.password.$pristine }">
-        <label>
-            Password
-            <input type="password" name="password" class="form-control" ng-model="password" ng-minlength="5" ng-maxlength="10" required>
-            <p ng-show="userForm.password.$error.minlength" class="help-block">Password is too short.</p>
-            <p ng-show="userForm.password.$error.maxlength" class="help-block">Password is too long.</p>
-        </label>
-    </div>
-
-     <div class="form-group" ng-class="{ 'has-error' : userForm.fname.$invalid && !userForm.fname.$pristine }">
-        <label>
-            First Name
-            <input type="text" name="first_name" class="form-control" ng-model="fname" required>
-              <p ng-show="userForm.fname.$invalid && !userForm.fname.$pristine" class="help-block">You first name is required.</p>
-        </label>
-    </div> 
-
-    <div class="form-group" ng-class="{ 'has-error' : userForm.lname.$invalid && !userForm.lname.$pristine }">
-        <label>
-            Last Name
-            <input type="text" name="last_name" class="form-control" ng-model="lname" required>
-            <p ng-show="userForm.lname.$invalid && !userForm.lname.$pristine" class="help-block">You last name is required.</p>
-        </label>
-    </div> 
-
-    <div class="form-group" ng-class="{ 'has-error' : userForm.lang.$invalid && !userForm.lang.$pristine }">
-        <label>Language
-        <select name="lang_id" class="form-control" ng-model="lang" required>
-        {% for lang in languages %}
-          <option value= {{ lang[0] }}>{{ lang[1] }}</option>
-        {% endfor %}
-        <p ng-show="userForm.lang.$invalid && !userForm.lang.$pristine" class="help-block">Contact's language is required.</p>
-        </select>
-    </label>
-    </div>
-
-    <div class="form-group" ng-class="{ 'has-error' : userForm.phone.$invalid && !userForm.phone.$pristine }">
-        <label>
-            Phone
-            <input type="text" name="phone" class="form-control" ng-model="phone" ng-minlength="10" ng-maxlength="12" required>
-            <p ng-show="userForm.phone.$error.minlength" class="help-block">Phone number is too short.</p>
-            <p ng-show="userForm.phone.$error.maxlength" class="help-block">Phone number is too long.</p>
-        </label>
-    </div>
-
-    <div>
-        <input type="submit" value="Submit" class="btn btn-primary" ng-disabled="userForm.$invalid">
-    </div>
-</form>
-</div><!-- col-sm-8 -->
-</div><!-- /container -->
 </div>
+</div>
+
 
 <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
 <script type="text/javascript">
@@ -82,7 +69,7 @@ validationApp.controller('userController', function($scope) {
 
     // check to make sure the form is completely valid
     if (isValid) {
-      alert('The user has been added.');
+        swal("Success!", "The user has been added!", "success");
     }
   };
 });

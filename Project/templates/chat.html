@@ -1,10 +1,10 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <link href="/css/style.css" rel="stylesheet">
-    <script type="text/javascript" src="http://code.jquery.com/jquery-1.6.1.min.js">
-    </script><script type="text/javascript" src="/socket.io.js"></script>
-    <script>    
+{% extends 'base.html' %}
+{% block content %}
+
+<link href="/css/style.css" rel="stylesheet">
+<script type="text/javascript" src="http://code.jquery.com/jquery-1.6.1.min.js">
+</script><script type="text/javascript" src="/socket.io.js"></script>
+<script>    
 
 
 WEB_SOCKET_SWF_LOCATION = "/WebSocketMain.swf";
@@ -80,8 +80,6 @@ $(function () {
     };
 });
     </script>
-  </head>
-<body>
   <div id="chat">
     <div id="nickname">
       <form id="set-nickname" class="wrap">
@@ -102,5 +100,4 @@ $(function () {
       <button>Send</button>
     </form>
   </div>
-</body>
-</html>
+{% endblock %}

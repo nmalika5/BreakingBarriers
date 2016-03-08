@@ -1,0 +1,30 @@
+.chart-legend ul {
+    list-style: none;
+    text-align: center;
+    margin-right: 5px;
+}
+
+.messages-piechart {
+    max-height:800px;
+    max-width:700px;
+    margin: 0 auto;
+}
+
+.messages-barchart {
+    max-height:600px;
+    max-width:1000px;
+    margin: 0 auto;
+}
+
+h4 {
+    text-align: center;
+    color: #808080;
+}
+th {
+    text-align: center;
+    color: #A9A9A9; 
+}
+td{
+    text-align: center;
+}
+

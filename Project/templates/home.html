@@ -1,6 +1,109 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LingoChat</title>
 
-{% block content %}
-  <h1>Homepage</h1>
+    <!-- Bootstrap -->
+    <link rel="stylesheet" 
+          href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <!-- Google Font -->
+    <link href='https://fonts.googleapis.com/css?family=Raleway:400,100,200,300,500,600,800,700,900' rel='stylesheet' type='text/css'>
+    <!-- Stylesheet -->
+    <link rel="stylesheet"
+            href="/static/css/home.css">
 
-{% endblock %}
+
+</head>
+
+<body>
+
+    <!-- Static navbar -->
+<nav class="navbar navbar-inverse">
+  <div class="container-fluid">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button"
+              class="navbar-toggle collapsed" 
+              data-toggle="collapse" 
+              data-target="#bs-example-navbar-collapse-1" 
+              aria-expanded="false"
+              aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">LingoChat</a>
+    </div>
+
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav">
+        {% if "user_id" not in session %}
+        <li><a href="/register">Signup</a></li>
+        {% endif %}
+        <li class="dropdown">
+            {% if "user_id" in session %}
+              <li><a href="/users/{{ session['user_id'] }}/chat">LiveChat</a></li>
+             {% endif %}
+              {% if "user_id" in session %}
+              <li><a href="/users/{{ session['user_id'] }}/messages">Message Analysis</a></li>
+            {% endif %}
+          </ul>
+        </li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        {% if "user_id" in session %}
+        <li><a href="/check_login">Send Message</a></li>
+        {% endif %}
+        <li class="dropdown">
+        {% if "user_id" in session %}
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Myself<span class="caret"></span></a>
+          <ul class="dropdown-menu">
+        {% endif %}
+            {% if "user_id" in session %}
+            <li><a href="/users/{{ session['user_id'] }}/add_contact">Add Contact</a></li>
+             {% endif %}
+             {% if "user_id" in session %}
+              <li><a href="/users/{{ session['user_id'] }}/edit_user">Edit Profile</a></li>
+             {% endif %}
+             {% if "user_id" in session %}
+            <li><a href="/check_login">User Profile</a></li>
+            {% endif %}
+            <li role="separator" class="divider"></li>
+            {% if "user_id" in session %}
+            <li class="active"><a href="/logout">Logout <span class="sr-only">(current)</span></a></li>
+            {% endif %}
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-xs-12 col-sm-12 col-md-6 col-lg-6 left">
+                <p class="motto">Your Channel. Your Chat. Your Language.</p>
+            </div>
+            <div class="col-xs-12 col-sm-12 col-md-6 col-lg-6 right">
+                <div class="col-md-4 col-md-offset-3">
+                    <h2 id="login">Log In</h2>
+                    <form action="/login" method="POST">
+                        <input name="email" type="text" class="form-control" placeholder="Your Email" required>
+                        <input name="password" type="password" class="form-control" placeholder="Your Password" required>
+                    <div>
+                        <input type="submit" class="btn" id="submit" value="Log In">
+                    </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script src="http://code.jquery.com/jquery.js"></script>
+<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+
+</body>
+</html>
