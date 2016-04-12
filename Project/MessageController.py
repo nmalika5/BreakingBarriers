@@ -50,11 +50,12 @@ def add_trans_msg(unique_lang_id, trans_msg, message_id):
 def send_trans_texts(contacts, trans_msgs_dict, message_id):
     """ [], dict, int -> None
     Send translated texts to contacts"""
-
-    for contact in contacts:
-        contact_lang = contact.language.yandex_lang_code
-        msg = twilio_api.send_message(trans_msgs_dict[contact_lang], contact.contact_phone)
-        contact_msg = add_sent_msg(msg.status, contact.contact_id, message_id)
+    user_messages = Message.query.count()
+    if user_messages < 2000:
+        for contact in contacts:
+            contact_lang = contact.language.yandex_lang_code
+            msg = twilio_api.send_message(trans_msgs_dict[contact_lang], contact.contact_phone)
+            contact_msg = add_sent_msg(msg.status, contact.contact_id, message_id)
 
 
 def add_sent_msg(msg_status, contact_id, message_id):

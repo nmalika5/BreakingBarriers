@@ -406,7 +406,6 @@ def submit_text_form(user_id):
                                                                     lang_code, message.message_id,
                                                                     True)
 
-
     MessageController.send_trans_texts(contacts, translate_langs_dict,
                                       message.message_id)
 
@@ -568,7 +567,6 @@ def send_text():
 
     message_status = request.values.get("SmsStatus", None)
 
-
     if contact_phone != None:
         contact_phone = contact_phone[2:]
         contacts = Contact.query.filter_by(contact_phone=contact_phone).all()
@@ -585,7 +583,9 @@ def send_text():
         from_contact = Contact.query.filter((Contact.user_id==user.user_id) & (Contact.contact_phone==contact_phone)).first()
         from_lang = from_contact.language.yandex_lang_code
         translated_resp_msg = yandex.translate_message(response_message, from_lang, to_lang)['text']
-        twilio_api.send_message(translated_resp_msg, user_phone)
+        user_messages = Message.query.count()
+        if user_messages < 2000:
+            twilio_api.send_message(translated_resp_msg, user_phone)
 
         return ('', 204)
 
