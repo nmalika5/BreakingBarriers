@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import asc
 import time
+import os
 
 # This is the connection to the SQLite database; we're getting this through
 # the Flask-SQLAlchemy helper library. On this, we can find the `session`
@@ -229,7 +230,8 @@ def connect_to_db(app, database):
     """Connect the database to our Flask app."""
 
     # Configure to use our SQLite database
-    app.config['SQLALCHEMY_DATABASE_URI'] = database
+    # app.config['SQLALCHEMY_DATABASE_URI'] = database
+    app.config['SQLALCHEMY_DATABASE_URI']=os.environ.get("DATABASE_URL", "postgresql:///myapp")
     db.app = app
     db.init_app(app)
 
@@ -239,5 +241,5 @@ if __name__ == "__main__":
     # you in a state of being able to work with the database directly.
 
     from server import app
-    connect_to_db(app, 'postgres:///myapp')
+    connect_to_db(app, os.environ.get("DATABASE_URL", "postgresql:///myapp"))
     print "Connected to DB."

@@ -84,7 +84,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 print type(app)
 
 # Required to use Flask sessions and the debug toolbar
-app.secret_key = "ABC"
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "ABCDEF")
+# SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "ABCDEF")
 
 app.jinja_env.undefined = StrictUndefined
 
@@ -656,7 +657,7 @@ if __name__ == "__main__":
 
     DebugToolbarExtension(app)
 
-    connect_to_db(app, 'postgres:///myapp')
+    connect_to_db(app, os.environ.get("DATABASE_URL", "postgresql:///myapp"))
 
     print 'Listening on http://localhost:5000'
     app.debug = False
