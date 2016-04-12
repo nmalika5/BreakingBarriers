@@ -659,15 +659,16 @@ if __name__ == "__main__":
     connect_to_db(app, 'postgres:///myapp')
 
     print 'Listening on http://localhost:5000'
-    app.debug = True
+    app.debug = False
     import os
     from werkzeug.wsgi import SharedDataMiddleware
     flask_app = app
     app = SharedDataMiddleware(app, {
         '/': os.path.join(os.path.dirname(__file__), 'static')
         })
+    PORT = int(os.environ.get("PORT", 5000))
     from socketio.server import SocketIOServer
-    SocketIOServer(('0.0.0.0', 5000), app,
+    SocketIOServer(('0.0.0.0', PORT), app,
         resource="socket.io", policy_server=False).serve_forever()
 
 
